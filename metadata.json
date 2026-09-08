@@ -1,0 +1,6 @@
+{
+  "name": "Python Lab Grader & Plagiarism Checker",
+  "description": "Автоматическая проверка лабораторных работ по Python с тестированием, AST-анализом, выявлением плагиата и детекцией ИИ-генерации (ChatGPT).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
