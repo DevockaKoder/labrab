@@ -65,6 +65,7 @@ import sys
 import io
 import ast
 import json
+import math
 
 code_to_run = ${JSON.stringify(code)}
 mock_input = ${JSON.stringify(inputStr)}
@@ -99,8 +100,24 @@ exec_error = None
 try:
     # Compile and execute student snippet
     compiled = compile(code_to_run, '<student_code>', 'exec')
-    # Use clean globals with standard builtins and math
-    exec_globals = {"__name__": "__main__"}
+    # Use clean globals with standard builtins and math library pre-loaded
+    exec_globals = {
+        "__name__": "__main__",
+        "math": math,
+        "m": math,
+        "pi": math.pi,
+        "e": math.e,
+        "sqrt": math.sqrt,
+        "hypot": math.hypot,
+        "sin": math.sin,
+        "cos": math.cos,
+        "tan": math.tan,
+        "radians": math.radians,
+        "degrees": math.degrees,
+        "ceil": math.ceil,
+        "floor": math.floor,
+        "fabs": math.fabs,
+    }
     exec(compiled, exec_globals)
 except Exception as e:
     exec_error = str(e)

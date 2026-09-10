@@ -80,61 +80,77 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
     if (!res || res.status === 'not_found') {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-          <FileQuestion className="w-3 h-3" /> Не найдено
+          <FileQuestion className="w-3 h-3" /> {res?.isSample ? 'Образец не найден' : 'Не найдено'}
         </span>
       );
     }
     if (res.status === 'passed') {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-          <CheckCircle className="w-3 h-3 text-emerald-600" /> Пройдено (1 б.)
+          <CheckCircle className="w-3 h-3 text-emerald-600" /> {res.isSample ? 'Образец проверен (без оценки)' : 'Пройдено (1 б.)'}
         </span>
       );
     }
     if (res.status === 'syntax_error') {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">
-          <XCircle className="w-3 h-3 text-rose-600" /> Ошибка выполнения
+          <XCircle className="w-3 h-3 text-rose-600" /> {res.isSample ? 'Ошибка в образце' : 'Ошибка выполнения'}
         </span>
       );
     }
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-        <AlertTriangle className="w-3 h-3 text-amber-600" /> Ошибка в тестах ({res.score} б.)
+        <AlertTriangle className="w-3 h-3 text-amber-600" /> {res.isSample ? 'Замечание по образцу' : `Ошибка в тестах (${res.score} б.)`}
       </span>
     );
   };
 
   const handleCopyFeedback = () => {
-    let report = `Результаты проверки Лабораторной №1:\n`;
+    let report = `Результаты проверки лабораторной работы №1:\n`;
     report += `Студент: ${currentStudent.studentName} (${currentStudent.groupName})\n`;
-    report += `Набрано баллов: ${currentStudent.totalScore} из ${currentStudent.maxPossibleScore} (${currentStudent.gradePercentage}%)\n`;
+    report += `Набрано баллов по зачётным заданиям: ${currentStudent.totalScore} из ${currentStudent.maxPossibleScore} (${currentStudent.gradePercentage}%)\n`;
+    report += `Примечание: Задачи 1.1, 2.1, 3.1, 3.2, 4.1 являются примерами из методички и не учитываются в общей оценке успеваемости.\n`;
 
     if (currentStudent.topSimilarity && currentStudent.topSimilarity.similarityPercent >= 70) {
-      report += `⚠️ Внимание: Система обнаружила высокую схожесть кода (${currentStudent.topSimilarity.similarityPercent}%) с работой другого студента (${currentStudent.topSimilarity.withStudentName}).\n`;
+      report += `\nВнимание: Система зафиксировала повышенную схожесть кода (${currentStudent.topSimilarity.similarityPercent}%) с работой другого студента (${currentStudent.topSimilarity.withStudentName}). Требуется проверка оригинальности.\n`;
     }
 
     if (currentStudent.aiDetection && currentStudent.aiDetection.aiProbability >= 40) {
-      report += `🤖 Контроль ИИ: Вероятность генерации кода ИИ составляет ${currentStudent.aiDetection.aiProbability}% (${currentStudent.aiDetection.verdict === 'likely_ai' ? 'Высокая' : 'Умеренная'}).\n`;
+      report += `\nКонтроль авторства (ИИ): Вероятность генерации кода составляет ${currentStudent.aiDetection.aiProbability}% (${currentStudent.aiDetection.verdict === 'likely_ai' ? 'Высокая' : 'Умеренная'}).\n`;
       if (currentStudent.aiDetection.defenseQuestions?.length) {
-        report += `Контрольные вопросы для устной защиты:\n`;
+        report += `Вопросы для очной защиты:\n`;
         currentStudent.aiDetection.defenseQuestions.forEach((q, idx) => {
           report += `  ${idx + 1}. ${q}\n`;
         });
       }
     }
 
-    report += `\nДетализация по заданиям:\n`;
-    LAB1_TASKS.forEach((t) => {
+    report += `\nДетализация по зачётным заданиям:\n`;
+    const gradedTasks = LAB1_TASKS.filter((t) => !t.isSample);
+    gradedTasks.forEach((t) => {
       const r = currentStudent.results[t.id];
       if (!r || r.status === 'not_found') {
-        report += `• Задача ${t.id} (${t.title}): ❌ Не решена / отсутствует в файле\n`;
+        report += `- Задание ${t.id} (${t.title}): Не решено / отсутствует в файле (0/1)\n`;
       } else if (r.status === 'passed') {
-        report += `• Задача ${t.id} (${t.title}): ✅ Выполнена верно (1/1)\n`;
+        report += `- Задание ${t.id} (${t.title}): Выполнено верно (1/1)\n`;
       } else {
         const failMsg = r.runtimeError || r.tests.find((test) => !test.passed)?.errorMessage || 'Несовпадение ответа';
         const astViol = r.astChecks.find((a) => !a.passed)?.message;
-        report += `• Задача ${t.id} (${t.title}): ⚠️ Балл: ${r.score}. Причина: ${astViol || failMsg}\n`;
+        report += `- Задание ${t.id} (${t.title}): Балл: ${r.score}/1. Причина: ${astViol || failMsg}\n`;
+      }
+    });
+
+    report += `\nЗадания-образцы из методички (без начисления баллов):\n`;
+    const sampleTasks = LAB1_TASKS.filter((t) => t.isSample);
+    sampleTasks.forEach((t) => {
+      const r = currentStudent.results[t.id];
+      if (!r || r.status === 'not_found') {
+        report += `- Пример ${t.id} (${t.title}): Не найден в файле\n`;
+      } else if (r.status === 'passed') {
+        report += `- Пример ${t.id} (${t.title}): Проверен корректно\n`;
+      } else {
+        const failMsg = r.runtimeError || r.tests.find((test) => !test.passed)?.errorMessage || 'Ошибка';
+        report += `- Пример ${t.id} (${t.title}): Замечание (${failMsg})\n`;
       }
     });
 
@@ -383,7 +399,7 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-100 text-center">
             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-              <span className="text-[11px] text-slate-500 block">Балл</span>
+              <span className="text-[11px] text-slate-500 block">Зачётный балл</span>
               <span className="text-lg font-bold text-slate-900">
                 {currentStudent.totalScore} / {currentStudent.maxPossibleScore}
               </span>
@@ -403,9 +419,9 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
               </span>
             </div>
             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-              <span className="text-[11px] text-slate-500 block">Решено задач</span>
+              <span className="text-[11px] text-slate-500 block">Зачётных решено</span>
               <span className="text-lg font-bold text-slate-900">
-                {(Object.values(currentStudent.results) as TaskCheckResult[]).filter((r) => r.status === 'passed').length} / {LAB1_TASKS.length}
+                {(Object.values(currentStudent.results) as TaskCheckResult[]).filter((r) => r.status === 'passed' && !r.isSample).length} / {LAB1_TASKS.filter((t) => !t.isSample).length}
               </span>
             </div>
             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
@@ -421,6 +437,9 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
               </span>
             </div>
           </div>
+          <p className="text-[11px] text-slate-500 mt-2.5 text-center">
+            Задачи 1.1, 2.1, 3.1, 3.2, 4.1 являются примерами из методички и исключены из общей оценки успеваемости (в зачёт входят 20 задач).
+          </p>
         </div>
 
         {/* AI Detection Card */}
@@ -692,8 +711,8 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="text-sm font-semibold text-slate-900">{task.title}</h4>
                         {task.isSample && (
-                          <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.2 rounded font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                            Образец IDLE
+                          <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-semibold bg-amber-50 text-amber-800 border border-amber-300">
+                            Пример из методички (не оценивается)
                           </span>
                         )}
                       </div>

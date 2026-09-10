@@ -19,7 +19,12 @@ export async function gradeStudentCode(
 
   for (let i = 0; i < LAB1_TASKS.length; i++) {
     const task = LAB1_TASKS[i];
-    maxPossibleScore += 1;
+    const isSampleTask = !!task.isSample;
+
+    // Tasks 1.1, 2.1, 3.1, 3.2, 4.1 are manual samples and excluded from overall grading score
+    if (!isSampleTask) {
+      maxPossibleScore += 1;
+    }
 
     if (onProgress) {
       onProgress(i + 1, LAB1_TASKS.length, `${task.id} - ${task.title}`);
@@ -35,6 +40,7 @@ export async function gradeStudentCode(
         studentSnippet: '',
         status: 'not_found',
         score: 0,
+        isSample: isSampleTask,
         tests: [],
         astChecks: [],
       };
@@ -138,7 +144,10 @@ export async function gradeStudentCode(
     const taskScore = isOverallSuccess ? 1 : testResults.filter((t) => t.passed).length / (testResults.length || 1) * (astAllPassed ? 0.7 : 0.2);
     const roundedScore = Math.round(taskScore * 10) / 10;
 
-    totalScore += roundedScore;
+    // Only non-sample tasks contribute to total student score
+    if (!isSampleTask) {
+      totalScore += roundedScore;
+    }
 
     results[task.id] = {
       taskId: task.id,
@@ -147,13 +156,14 @@ export async function gradeStudentCode(
       studentSnippet: snippet,
       status: isOverallSuccess ? 'passed' : runtimeError ? 'syntax_error' : 'failed',
       score: roundedScore,
+      isSample: isSampleTask,
       tests: testResults,
       astChecks: astResults,
       runtimeError,
     };
   }
 
-  const gradePercentage = Math.round((totalScore / maxPossibleScore) * 100);
+  const gradePercentage = maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 100;
 
   return {
     id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,

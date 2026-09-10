@@ -77,15 +77,35 @@ export function splitCodeIntoTasks(code: string, fileName = ''): { [taskId: stri
     return taskMap;
   }
 
+  // Extract preamble imports (e.g., import math, from math import *)
+  const firstIndex = matches[0]?.index ?? 0;
+  const preamble = code.slice(0, firstIndex);
+  const preambleImports = preamble
+    .split('\n')
+    .filter((line) => /^\s*(?:import\s+|from\s+)/.test(line))
+    .map((l) => l.trim())
+    .join('\n');
+
+  const fileHasMathImport = code.includes('import math') || code.includes('from math');
+
   // Extract snippets between matches
   for (let i = 0; i < matches.length; i++) {
     const current = matches[i];
     const startIndex = current.index;
     const endIndex = i + 1 < matches.length ? matches[i + 1].index : code.length;
-    const snippet = code.slice(startIndex, endIndex).trim();
+    let snippet = code.slice(startIndex, endIndex).trim();
 
-    // Remove task header comment itself from execution snippet if needed,
-    // but keep it if student defined variables there
+    // If the student specified import math at the top of their file (or whole file),
+    // ensure any individual task snippet using math has the import present.
+    if (
+      (fileHasMathImport || preambleImports.includes('math')) &&
+      !snippet.includes('import math') &&
+      !snippet.includes('from math') &&
+      /\bmath\b/.test(snippet)
+    ) {
+      snippet = 'import math\n' + snippet;
+    }
+
     taskMap[current.taskId] = snippet;
   }
 

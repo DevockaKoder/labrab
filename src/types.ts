@@ -37,6 +37,7 @@ export interface TaskCheckResult {
   studentSnippet: string;
   status: 'passed' | 'failed' | 'syntax_error' | 'not_found' | 'skipped';
   score: number; // 0 to 1
+  isSample?: boolean; // Excluded from total grading score
   tests: {
     testId: string;
     description: string;

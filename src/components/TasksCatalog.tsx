@@ -53,7 +53,7 @@ export const TasksCatalog: React.FC = () => {
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              {s === 'all' ? 'Все задания (23)' : s.split('.')[0] + '.' + s.split('.')[1]?.slice(0, 15)}
+              {s === 'all' ? `Все задания (${LAB1_TASKS.length})` : s.split('.')[0] + '.' + s.split('.')[1]?.slice(0, 15)}
             </button>
           ))}
         </div>
@@ -75,8 +75,8 @@ export const TasksCatalog: React.FC = () => {
                   <h4 className="text-sm font-semibold text-slate-900">{task.title}</h4>
                 </div>
                 {task.isSample && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                    Образец
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-800 border border-amber-300">
+                    Пример (не оценивается)
                   </span>
                 )}
               </div>

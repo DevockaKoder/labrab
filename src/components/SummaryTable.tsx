@@ -111,7 +111,7 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
           <span className="text-xs text-slate-500 block">Средний балл по группе</span>
           <span className="text-xl font-bold text-indigo-600">
-            {Math.round(avgScore * 10) / 10} / {LAB1_TASKS.length}
+            {Math.round(avgScore * 10) / 10} / {submissions[0]?.maxPossibleScore || LAB1_TASKS.filter((t) => !t.isSample).length}
           </span>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
