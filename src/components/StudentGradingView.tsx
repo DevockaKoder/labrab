@@ -22,6 +22,7 @@ import {
   UserCheck,
   HelpCircle,
   Loader2,
+  Upload,
 } from 'lucide-react';
 
 interface StudentGradingViewProps {
@@ -31,6 +32,7 @@ interface StudentGradingViewProps {
   onNavigateToSimilarity: (studentAId: string, studentBId: string) => void;
   onDeleteSubmission?: (id: string) => void;
   onUpdateSubmission?: (updated: StudentSubmission) => void;
+  onOpenUpload?: () => void;
 }
 
 export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
@@ -40,6 +42,7 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
   onNavigateToSimilarity,
   onDeleteSubmission,
   onUpdateSubmission,
+  onOpenUpload,
 }) => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'passed' | 'failed' | 'not_found'>('all');
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
@@ -56,12 +59,23 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
 
   if (!currentStudent) {
     return (
-      <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
-        <Code2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-        <h3 className="text-base font-semibold text-slate-700">Нет загруженных работ</h3>
-        <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-          Загрузите файлы лабораторных работ (.py / .zip) или нажмите «Загрузить 3 образца» в верхнем меню, чтобы увидеть результат.
+      <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 p-8 shadow-xs max-w-2xl mx-auto">
+        <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto mb-4 text-indigo-600">
+          <Code2 className="w-8 h-8" />
+        </div>
+        <h3 className="text-lg font-semibold text-slate-900">Работы студентов пока не загружены</h3>
+        <p className="text-xs text-slate-500 max-w-md mx-auto mt-1.5 mb-6 leading-relaxed">
+          Загрузите один или несколько файлов .py (или ZIP-архив с работами студентов группы). Автоматически запустятся тестирование вычислений, AST-проверки ограничений, антиплагиат и оценка по 3-балльной шкале.
         </p>
+        {onOpenUpload && (
+          <button
+            onClick={onOpenUpload}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition-all shadow-md shadow-indigo-100"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Загрузить файлы студентов (.py / .zip)</span>
+          </button>
+        )}
       </div>
     );
   }
@@ -108,7 +122,10 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
   const handleCopyFeedback = () => {
     let report = `Результаты проверки лабораторной работы №1:\n`;
     report += `Студент: ${currentStudent.studentName} (${currentStudent.groupName})\n`;
-    report += `Набрано баллов по зачётным заданиям: ${currentStudent.totalScore} из ${currentStudent.maxPossibleScore} (${currentStudent.gradePercentage}%)\n`;
+    report += `Оценка: ${currentStudent.gradeScale3} из 3 (${currentStudent.gradeScale3Details?.verdictTitle || ''})\n`;
+    report += `Пояснение: ${currentStudent.gradeScale3Details?.description || ''}\n`;
+    report += `Зачётные задачи: набрано ${currentStudent.totalScore} из ${currentStudent.maxPossibleScore} (${currentStudent.gradePercentage}%)\n`;
+    report += `Шкала оценивания: 3 - отлично (1 несущественная ошибка допустима), 2 - есть ошибки, 1 - много ошибок или нейросеть, 0 - ничего не работает.\n`;
     report += `Примечание: Задачи 1.1, 2.1, 3.1, 3.2, 4.1 являются примерами из методички и не учитываются в общей оценке успеваемости.\n`;
 
     if (currentStudent.topSimilarity && currentStudent.topSimilarity.similarityPercent >= 70) {
@@ -259,17 +276,24 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
                     </p>
                   </div>
 
-                  {/* Grade Score Pill */}
-                  <div
-                    className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${
-                      sub.gradePercentage >= 80
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : sub.gradePercentage >= 50
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-rose-100 text-rose-800'
-                    }`}
-                  >
-                    {sub.totalScore}/{sub.maxPossibleScore} ({sub.gradePercentage}%)
+                  {/* Grade Score 3-Point Pill */}
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold whitespace-nowrap border shadow-2xs ${
+                        sub.gradeScale3 === 3
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                          : sub.gradeScale3 === 2
+                          ? 'bg-amber-100 text-amber-800 border-amber-200'
+                          : sub.gradeScale3 === 1
+                          ? 'bg-orange-100 text-orange-800 border-orange-200'
+                          : 'bg-rose-100 text-rose-800 border-rose-200'
+                      }`}
+                    >
+                      {sub.gradeScale3} / 3 б.
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {sub.totalScore}/{sub.maxPossibleScore} зач.
+                    </span>
                   </div>
                 </div>
 
@@ -396,26 +420,72 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
             </div>
           )}
 
+          {/* 3-Point Grade Hero Banner */}
+          <div
+            className={`mt-4 p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
+              currentStudent.gradeScale3 === 3
+                ? 'bg-emerald-50/70 border-emerald-200'
+                : currentStudent.gradeScale3 === 2
+                ? 'bg-amber-50/70 border-amber-200'
+                : currentStudent.gradeScale3 === 1
+                ? 'bg-orange-50/70 border-orange-200'
+                : 'bg-rose-50/70 border-rose-200'
+            }`}
+          >
+            <div className="flex items-center gap-3.5">
+              <div
+                className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center font-bold font-mono border shadow-xs flex-shrink-0 ${
+                  currentStudent.gradeScale3 === 3
+                    ? 'bg-emerald-600 text-white border-emerald-700'
+                    : currentStudent.gradeScale3 === 2
+                    ? 'bg-amber-600 text-white border-amber-700'
+                    : currentStudent.gradeScale3 === 1
+                    ? 'bg-orange-600 text-white border-orange-700'
+                    : 'bg-rose-600 text-white border-rose-700'
+                }`}
+              >
+                <span className="text-2xl leading-none">{currentStudent.gradeScale3}</span>
+                <span className="text-[10px] font-sans font-medium opacity-90">из 3</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-base text-slate-900">
+                    Оценка: {currentStudent.gradeScale3Details?.verdictTitle || `${currentStudent.gradeScale3} из 3`}
+                  </span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-white/90 text-slate-700 border border-slate-200/80">
+                    3-балльная шкала
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed max-w-xl">
+                  {currentStudent.gradeScale3Details?.description || ''}
+                </p>
+              </div>
+            </div>
+
+            {/* Criteria mini-legend */}
+            <div className="text-[11px] text-slate-600 bg-white/90 p-2.5 rounded-lg border border-slate-200/80 sm:max-w-xs flex-shrink-0">
+              <span className="font-semibold text-slate-800 block mb-1">Шкала оценивания:</span>
+              <div className="space-y-0.5 text-[10.5px]">
+                <div><strong className="text-emerald-700">3</strong> — 1 несущественная ошибка допустима</div>
+                <div><strong className="text-amber-700">2</strong> — есть ошибки (работа выполнена)</div>
+                <div><strong className="text-orange-700">1</strong> — много ошибок или нейросеть</div>
+                <div><strong className="text-rose-700">0</strong> — ничего не работает</div>
+              </div>
+            </div>
+          </div>
+
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-100 text-center">
             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-              <span className="text-[11px] text-slate-500 block">Зачётный балл</span>
+              <span className="text-[11px] text-slate-500 block">Оценка (шкала 0–3)</span>
               <span className="text-lg font-bold text-slate-900">
-                {currentStudent.totalScore} / {currentStudent.maxPossibleScore}
+                {currentStudent.gradeScale3} / 3 б.
               </span>
             </div>
             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-              <span className="text-[11px] text-slate-500 block">Успеваемость</span>
-              <span
-                className={`text-lg font-bold ${
-                  currentStudent.gradePercentage >= 80
-                    ? 'text-emerald-600'
-                    : currentStudent.gradePercentage >= 50
-                    ? 'text-amber-600'
-                    : 'text-rose-600'
-                }`}
-              >
-                {currentStudent.gradePercentage}%
+              <span className="text-[11px] text-slate-500 block">Зачётный балл</span>
+              <span className="text-lg font-bold text-slate-900">
+                {currentStudent.totalScore} / {currentStudent.maxPossibleScore} ({currentStudent.gradePercentage}%)
               </span>
             </div>
             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">

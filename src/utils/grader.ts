@@ -2,8 +2,8 @@ import { LAB1_TASKS } from '../data/lab1Tasks';
 import { StudentSubmission, TaskCheckResult } from '../types';
 import { splitCodeIntoTasks, extractStudentHeader } from './codeParser';
 import { runPythonCode } from './pythonRunner';
-
 import { analyzeCodeForAiHeuristics } from './aiDetector';
+import { calculateGradeScale3 } from './gradeScale';
 
 export async function gradeStudentCode(
   rawCode: string,
@@ -164,6 +164,8 @@ export async function gradeStudentCode(
   }
 
   const gradePercentage = maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 100;
+  const aiDetection = analyzeCodeForAiHeuristics(rawCode);
+  const gradeScale3Details = calculateGradeScale3(totalScore, maxPossibleScore, results, aiDetection);
 
   return {
     id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
@@ -177,6 +179,8 @@ export async function gradeStudentCode(
     totalScore,
     maxPossibleScore,
     gradePercentage,
-    aiDetection: analyzeCodeForAiHeuristics(rawCode),
+    gradeScale3: gradeScale3Details.score,
+    gradeScale3Details,
+    aiDetection,
   };
 }

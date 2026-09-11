@@ -12,6 +12,7 @@ import {
   Check,
   Search,
   Code,
+  Upload,
 } from 'lucide-react';
 
 interface SimilarityMatrixViewProps {
@@ -19,6 +20,7 @@ interface SimilarityMatrixViewProps {
   similarityPairs: SimilarityPair[];
   initialStudentAId?: string;
   initialStudentBId?: string;
+  onOpenUpload?: () => void;
 }
 
 export const SimilarityMatrixView: React.FC<SimilarityMatrixViewProps> = ({
@@ -26,6 +28,7 @@ export const SimilarityMatrixView: React.FC<SimilarityMatrixViewProps> = ({
   similarityPairs,
   initialStudentAId,
   initialStudentBId,
+  onOpenUpload,
 }) => {
   const [selectedStudentA, setSelectedStudentA] = useState<string>(
     initialStudentAId || (submissions[0]?.id || '')
@@ -39,12 +42,23 @@ export const SimilarityMatrixView: React.FC<SimilarityMatrixViewProps> = ({
 
   if (submissions.length < 2) {
     return (
-      <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
-        <ShieldAlert className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-        <h3 className="text-base font-semibold text-slate-700">Недостаточно работ для сравнения</h3>
-        <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-          Для анализа схожести и поиска плагиата необходимо загрузить как минимум 2 работы. Нажмите «Загрузить 3 образца» вверху, чтобы увидеть сравнение Иванова, Петрова и Сидоровой.
+      <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 p-8 shadow-xs max-w-2xl mx-auto">
+        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-400">
+          <GitCompare className="w-8 h-8" />
+        </div>
+        <h3 className="text-lg font-semibold text-slate-900">Недостаточно работ для сравнения</h3>
+        <p className="text-xs text-slate-500 max-w-md mx-auto mt-1.5 mb-6 leading-relaxed">
+          Для анализа схожести и взаимного плагиата необходимо загрузить как минимум 2 работы студентов (.py / .zip). Алгоритм сравнивает нормализованную структуру AST и токенов независимо от переименования переменных.
         </p>
+        {onOpenUpload && (
+          <button
+            onClick={onOpenUpload}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition-all shadow-md shadow-indigo-100"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Загрузить работы студентов</span>
+          </button>
+        )}
       </div>
     );
   }

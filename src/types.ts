@@ -75,6 +75,16 @@ export interface AiDetectionResult {
   defenseQuestions: string[];
 }
 
+export type GradeScale3 = 0 | 1 | 2 | 3;
+
+export interface GradeScale3Details {
+  score: GradeScale3;
+  label: string; // e.g. "3 / 3"
+  verdictTitle: string; // "Отлично", "Есть ошибки", "Много ошибок / Нейросеть", "Ничего не работает"
+  description: string;
+  badgeColor: string;
+}
+
 export interface StudentSubmission {
   id: string;
   studentName: string;
@@ -87,6 +97,8 @@ export interface StudentSubmission {
   totalScore: number;
   maxPossibleScore: number;
   gradePercentage: number;
+  gradeScale3: GradeScale3;
+  gradeScale3Details: GradeScale3Details;
   aiDetection?: AiDetectionResult;
   topSimilarity?: {
     withStudentId: string;

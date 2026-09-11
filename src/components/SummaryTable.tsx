@@ -1,31 +1,44 @@
 import React, { useState } from 'react';
 import { StudentSubmission } from '../types';
 import { LAB1_TASKS } from '../data/lab1Tasks';
-import { Download, Copy, Check, FileSpreadsheet, ShieldAlert, ArrowUpDown, Bot, UserCheck } from 'lucide-react';
+import { Download, Copy, Check, FileSpreadsheet, ShieldAlert, ArrowUpDown, Bot, UserCheck, Upload } from 'lucide-react';
 
 interface SummaryTableProps {
   submissions: StudentSubmission[];
   onSelectStudent: (id: string) => void;
   onNavigateToSimilarity: (studentAId: string, studentBId: string) => void;
+  onOpenUpload?: () => void;
 }
 
 export const SummaryTable: React.FC<SummaryTableProps> = ({
   submissions,
   onSelectStudent,
   onNavigateToSimilarity,
+  onOpenUpload,
 }) => {
   const [copied, setCopied] = useState(false);
-  const [sortBy, setSortBy] = useState<'score' | 'name' | 'similarity' | 'ai'>('score');
+  const [sortBy, setSortBy] = useState<'grade3' | 'score' | 'name' | 'similarity' | 'ai'>('grade3');
   const [sortAsc, setSortAsc] = useState(false);
 
   if (submissions.length === 0) {
     return (
-      <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
-        <FileSpreadsheet className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-        <h3 className="text-base font-semibold text-slate-700">Ведомость пуста</h3>
-        <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-          Загрузите работы студентов, чтобы сформировать автоматическую ведомость с оценками и статусом плагиата.
+      <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 p-8 shadow-xs max-w-2xl mx-auto">
+        <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto mb-4 text-indigo-600">
+          <FileSpreadsheet className="w-8 h-8" />
+        </div>
+        <h3 className="text-lg font-semibold text-slate-900">Ведомость пуста</h3>
+        <p className="text-xs text-slate-500 max-w-md mx-auto mt-1.5 mb-6 leading-relaxed">
+          Загрузите файлы лабораторных работ студентов (.py или .zip), чтобы сформировать сводную ведомость успеваемости по 3-балльной шкале, результатам тестов и проверке на плагиат/ИИ.
         </p>
+        {onOpenUpload && (
+          <button
+            onClick={onOpenUpload}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition-all shadow-md shadow-indigo-100"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Загрузить работы студентов</span>
+          </button>
+        )}
       </div>
     );
   }
@@ -33,7 +46,10 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
   // Sorting
   const sortedSubmissions = [...submissions].sort((a, b) => {
     let cmp = 0;
-    if (sortBy === 'score') {
+    if (sortBy === 'grade3') {
+      cmp = (b.gradeScale3 ?? 0) - (a.gradeScale3 ?? 0);
+      if (cmp === 0) cmp = b.totalScore - a.totalScore;
+    } else if (sortBy === 'score') {
       cmp = b.totalScore - a.totalScore;
     } else if (sortBy === 'name') {
       cmp = a.studentName.localeCompare(b.studentName);
@@ -51,10 +67,9 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
 
   const handleExportCSV = () => {
     let csv = '\uFEFF'; // UTF-8 BOM for Excel
-    csv += 'ФИО Студента,Группа,Файл,Набрано баллов,Всего баллов,Процент,Макс. схожесть,С кем совпадение,Вероятность ИИ,Вердикт ИИ,Статус\n';
+    csv += 'ФИО Студента,Группа,Файл,Оценка (3-балльная),Вердикт шкалы,Набрано баллов (зачётных),Всего баллов,Процент,Макс. схожесть,С кем совпадение,Вероятность ИИ,Вердикт ИИ\n';
 
     sortedSubmissions.forEach((s) => {
-      const status = s.gradePercentage >= 60 ? 'Зачтено' : 'На доработку';
       const simWith = s.topSimilarity ? `"${s.topSimilarity.withStudentName}"` : '—';
       const simVal = s.topSimilarity ? `${s.topSimilarity.similarityPercent}%` : '0%';
       const aiProb = s.aiDetection ? `${s.aiDetection.aiProbability}%` : '—';
@@ -65,7 +80,8 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
           ? 'Подозрение на ИИ'
           : 'Самостоятельно'
         : '—';
-      csv += `"${s.studentName}","${s.groupName}","${s.fileName}",${s.totalScore},${s.maxPossibleScore},${s.gradePercentage}%,${simVal},${simWith},${aiProb},"${aiVerdict}","${status}"\n`;
+      const gradeTitle = s.gradeScale3Details?.verdictTitle || `Оценка ${s.gradeScale3}`;
+      csv += `"${s.studentName}","${s.groupName}","${s.fileName}",${s.gradeScale3},"${gradeTitle}",${s.totalScore},${s.maxPossibleScore},${s.gradePercentage}%,${simVal},${simWith},${aiProb},"${aiVerdict}"\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -80,14 +96,15 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
 
   const handleCopySummary = () => {
     let text = `СВОДНАЯ ВЕДОМОСТЬ: Лабораторная работа №1 (Python IDLE)\n`;
+    text += `Шкала: 3 - 1 несущ. ошибка допустима, 2 - есть ошибки, 1 - много ошибок/ИИ, 0 - ничего не работает\n`;
     text += `Дата формирования: ${new Date().toLocaleDateString()}\n\n`;
-    text += `№ | ФИО Студента | Группа | Балл | % | Плагиат | ИИ-контроль\n`;
-    text += `--------------------------------------------------------------------\n`;
+    text += `№ | ФИО Студента | Группа | Оценка (0-3) | Баллы | % | Плагиат | ИИ-контроль\n`;
+    text += `------------------------------------------------------------------------------------\n`;
 
     sortedSubmissions.forEach((s, idx) => {
       const sim = s.topSimilarity ? `${s.topSimilarity.similarityPercent}% (${s.topSimilarity.withStudentName})` : '—';
       const ai = s.aiDetection ? `${s.aiDetection.aiProbability}% (${s.aiDetection.verdict})` : '—';
-      text += `${idx + 1}. ${s.studentName} | ${s.groupName} | ${s.totalScore}/${s.maxPossibleScore} | ${s.gradePercentage}% | ${sim} | ${ai}\n`;
+      text += `${idx + 1}. ${s.studentName} | ${s.groupName} | Оценка: ${s.gradeScale3} | ${s.totalScore}/${s.maxPossibleScore} | ${s.gradePercentage}% | ${sim} | ${ai}\n`;
     });
 
     navigator.clipboard.writeText(text);
@@ -97,33 +114,67 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
 
   const avgScore =
     submissions.reduce((acc, s) => acc + s.totalScore, 0) / (submissions.length || 1);
-  const passedCount = submissions.filter((s) => s.gradePercentage >= 60).length;
+  const countGrade3 = submissions.filter((s) => s.gradeScale3 === 3).length;
+  const countGrade2 = submissions.filter((s) => s.gradeScale3 === 2).length;
+  const countGrade1 = submissions.filter((s) => s.gradeScale3 === 1).length;
+  const countGrade0 = submissions.filter((s) => s.gradeScale3 === 0).length;
   const aiAlertCount = submissions.filter((s) => s.aiDetection?.verdict === 'likely_ai').length;
 
   return (
     <div className="space-y-5">
       {/* Top summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
           <span className="text-xs text-slate-500 block">Всего студентов</span>
           <span className="text-xl font-bold text-slate-900">{submissions.length}</span>
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-xs text-slate-500 block">Средний балл по группе</span>
-          <span className="text-xl font-bold text-indigo-600">
-            {Math.round(avgScore * 10) / 10} / {submissions[0]?.maxPossibleScore || LAB1_TASKS.filter((t) => !t.isSample).length}
+        <div className="bg-white p-4 rounded-2xl border border-emerald-200 bg-emerald-50/20 shadow-xs">
+          <span className="text-xs text-emerald-800 font-medium block">Оценка 3 (отлично)</span>
+          <span className="text-xl font-bold text-emerald-700">
+            {countGrade3} <span className="text-xs font-normal text-slate-500">({Math.round((countGrade3 / submissions.length) * 100)}%)</span>
           </span>
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-xs text-slate-500 block">Успешно сдали (&gt;= 60%)</span>
-          <span className="text-xl font-bold text-emerald-600">
-            {passedCount} ({Math.round((passedCount / submissions.length) * 100)}%)
+        <div className="bg-white p-4 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-xs">
+          <span className="text-xs text-amber-800 font-medium block">Оценка 2 (есть ошибки)</span>
+          <span className="text-xl font-bold text-amber-700">
+            {countGrade2} <span className="text-xs font-normal text-slate-500">({Math.round((countGrade2 / submissions.length) * 100)}%)</span>
           </span>
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-xs text-slate-500 block">Подозрение на ИИ (ChatGPT)</span>
-          <span className={`text-xl font-bold ${aiAlertCount > 0 ? 'text-violet-600' : 'text-slate-700'}`}>
-            {aiAlertCount} студ.
+        <div className="bg-white p-4 rounded-2xl border border-orange-200 bg-orange-50/20 shadow-xs">
+          <span className="text-xs text-orange-800 font-medium block">Оценка 1 (ошибки / ИИ)</span>
+          <span className="text-xl font-bold text-orange-700">
+            {countGrade1} <span className="text-xs font-normal text-slate-500">({Math.round((countGrade1 / submissions.length) * 100)}%)</span>
+          </span>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-rose-200 bg-rose-50/20 shadow-xs">
+          <span className="text-xs text-rose-800 font-medium block">Оценка 0 (не работает)</span>
+          <span className="text-xl font-bold text-rose-700">
+            {countGrade0} <span className="text-xs font-normal text-slate-500">({Math.round((countGrade0 / submissions.length) * 100)}%)</span>
+          </span>
+        </div>
+      </div>
+
+      {/* 3-Point Scale Legend Bar */}
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs text-slate-600 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2 font-semibold text-slate-800">
+          <span>Шкала оценивания:</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-4 text-[11.5px]">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-md bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">3</span>
+            <span>1 несущественная ошибка допустима</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-800 font-bold flex items-center justify-center text-xs">2</span>
+            <span>Есть ошибки (выполнено)</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-md bg-orange-100 text-orange-800 font-bold flex items-center justify-center text-xs">1</span>
+            <span>Много ошибок или нейросеть</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-md bg-rose-100 text-rose-800 font-bold flex items-center justify-center text-xs">0</span>
+            <span>Ничего не работает</span>
           </span>
         </div>
       </div>
@@ -133,7 +184,9 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
         <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Итоговая ведомость группы</h3>
-            <p className="text-xs text-slate-500">Автоматически сформированный журнал оценок</p>
+            <p className="text-xs text-slate-500">
+              Средний зачётный балл: {Math.round(avgScore * 10) / 10} / {submissions[0]?.maxPossibleScore || LAB1_TASKS.filter((t) => !t.isSample).length} (задачи-примеры 1.1, 2.1, 3.1, 3.2, 4.1 исключены)
+            </p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -182,7 +235,18 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
                   </div>
                 </th>
                 <th className="p-3 font-medium">Группа</th>
-                <th className="p-3 font-medium">Файл решения</th>
+                <th
+                  className="p-3 font-medium cursor-pointer hover:text-indigo-600"
+                  onClick={() => {
+                    setSortBy('grade3');
+                    setSortAsc(!sortAsc);
+                  }}
+                >
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-slate-900">Оценка (0–3)</span>
+                    <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                  </div>
+                </th>
                 <th
                   className="p-3 font-medium cursor-pointer hover:text-indigo-600"
                   onClick={() => {
@@ -191,7 +255,7 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
                   }}
                 >
                   <div className="flex items-center gap-1">
-                    <span>Баллы</span>
+                    <span>Зачётные баллы</span>
                     <ArrowUpDown className="w-3 h-3 text-slate-400" />
                   </div>
                 </th>
@@ -236,12 +300,32 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
                       >
                         {sub.studentName}
                       </button>
+                      <span className="block text-[11px] font-normal text-slate-400 font-mono">{sub.fileName}</span>
                     </td>
                     <td className="p-3 text-slate-600 font-mono">{sub.groupName}</td>
-                    <td className="p-3 text-slate-500 font-mono truncate max-w-[140px]" title={sub.fileName}>
-                      {sub.fileName}
+                    
+                    {/* 3-Point Grade Cell */}
+                    <td className="p-3">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${
+                          sub.gradeScale3 === 3
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                            : sub.gradeScale3 === 2
+                            ? 'bg-amber-50 text-amber-800 border-amber-300'
+                            : sub.gradeScale3 === 1
+                            ? 'bg-orange-50 text-orange-800 border-orange-300'
+                            : 'bg-rose-50 text-rose-800 border-rose-300'
+                        }`}
+                        title={sub.gradeScale3Details?.description}
+                      >
+                        <span className="text-sm font-extrabold">{sub.gradeScale3}</span>
+                        <span className="text-[10px] font-medium opacity-80">
+                          {sub.gradeScale3 === 3 ? 'Отлично' : sub.gradeScale3 === 2 ? 'Хорошо' : sub.gradeScale3 === 1 ? 'Много ошибок/ИИ' : 'Не работает'}
+                        </span>
+                      </span>
                     </td>
-                    <td className="p-3 font-bold text-slate-900">
+
+                    <td className="p-3 font-bold text-slate-900 font-mono">
                       {sub.totalScore} / {sub.maxPossibleScore}
                     </td>
                     <td className="p-3">

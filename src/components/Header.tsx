@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlayCircle, ShieldAlert, FileSpreadsheet, BookOpen, Upload, Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
+import { PlayCircle, ShieldAlert, FileSpreadsheet, BookOpen, Upload, CheckCircle2, Loader2 } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: 'grading' | 'similarity' | 'summary' | 'tasks';
@@ -9,8 +9,6 @@ interface HeaderProps {
   aiAlertCount?: number;
   isPyodideReady: boolean;
   onOpenUpload: () => void;
-  onLoadSamples: () => void;
-  isLoadingSamples: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,8 +19,6 @@ export const Header: React.FC<HeaderProps> = ({
   aiAlertCount = 0,
   isPyodideReady,
   onOpenUpload,
-  onLoadSamples,
-  isLoadingSamples,
 }) => {
   return (
     <header className="border-b border-slate-200 bg-white sticky top-0 z-30 shadow-xs">
@@ -70,21 +66,6 @@ export const Header: React.FC<HeaderProps> = ({
                 </>
               )}
             </div>
-
-            {/* Load Samples button */}
-            <button
-              id="load-samples-btn"
-              onClick={onLoadSamples}
-              disabled={isLoadingSamples}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors disabled:opacity-50"
-            >
-              {isLoadingSamples ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-              ) : (
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              )}
-              <span>Загрузить 4 образца (вкл. ИИ)</span>
-            </button>
 
             {/* Upload Button */}
             <button

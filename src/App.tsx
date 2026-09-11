@@ -6,7 +6,6 @@ import { SimilarityMatrixView } from './components/SimilarityMatrixView';
 import { SummaryTable } from './components/SummaryTable';
 import { TasksCatalog } from './components/TasksCatalog';
 import { UploadModal } from './components/UploadModal';
-import { SAMPLE_SUBMISSIONS } from './data/sampleSubmissions';
 import { gradeStudentCode } from './utils/grader';
 import { compareAllSubmissions } from './utils/similarityEngine';
 import { getPyodide } from './utils/pythonRunner';
@@ -47,7 +46,7 @@ export default function App() {
         const graded = await gradeStudentCode(
           file.content,
           file.name,
-          (tIdx, total, tName) => {
+          (tIdx, total) => {
             setProgressText(`Файл ${i + 1}/${files.length} (${file.name}): тест ${tIdx}/${total}`);
           }
         );
@@ -70,28 +69,6 @@ export default function App() {
     setIsProcessing(false);
     setProgressText('');
   };
-
-  // Handler to load demo sample submissions
-  const handleLoadSamples = async () => {
-    const files = SAMPLE_SUBMISSIONS.map((s) => ({
-      name: s.fileName,
-      content: s.code,
-    }));
-    await handleProcessFiles(files);
-  };
-
-  // Auto-load sample submissions on first mount for instant live demo
-  useEffect(() => {
-    let mounted = true;
-    getPyodide().then(() => {
-      if (mounted && submissions.length === 0) {
-        handleLoadSamples();
-      }
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const handleNavigateToSimilarity = (studentAId: string, studentBId: string) => {
     setDiffStudentPair({ studentAId, studentBId });
@@ -126,8 +103,6 @@ export default function App() {
         aiAlertCount={aiAlertCount}
         isPyodideReady={isPyodideReady}
         onOpenUpload={() => setIsUploadOpen(true)}
-        onLoadSamples={handleLoadSamples}
-        isLoadingSamples={isProcessing}
       />
 
       {/* Main Content Area */}
@@ -140,6 +115,7 @@ export default function App() {
             onNavigateToSimilarity={handleNavigateToSimilarity}
             onDeleteSubmission={handleDeleteSubmission}
             onUpdateSubmission={handleUpdateSubmission}
+            onOpenUpload={() => setIsUploadOpen(true)}
           />
         )}
 
@@ -149,6 +125,7 @@ export default function App() {
             similarityPairs={similarityPairs}
             initialStudentAId={diffStudentPair.studentAId}
             initialStudentBId={diffStudentPair.studentBId}
+            onOpenUpload={() => setIsUploadOpen(true)}
           />
         )}
 
@@ -160,6 +137,7 @@ export default function App() {
               setActiveTab('grading');
             }}
             onNavigateToSimilarity={handleNavigateToSimilarity}
+            onOpenUpload={() => setIsUploadOpen(true)}
           />
         )}
 
