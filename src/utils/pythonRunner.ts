@@ -56,8 +56,14 @@ export async function runPythonCode(
 ): Promise<PyExecutionResult> {
   const py = await getPyodide();
 
-  // Prepare input string
-  const inputStr = inputs.map((v) => String(v)).join('\n') + '\n';
+  // Normalize inputs: convert to string, replace Russian comma in decimals (e.g. 5,5 -> 5.5)
+  const normalizedInputs = inputs.map((v) => {
+    const s = String(v).trim();
+    // Replace comma between digits with dot
+    return s.replace(/^(-?\d+),(\d+)$/, '$1.$2');
+  });
+
+  const inputStr = normalizedInputs.join('\n') + '\n';
 
   // Run wrapper in python that sets up stdin/stdout and performs AST checks
   const runnerScript = `
@@ -68,9 +74,38 @@ import json
 import math
 
 code_to_run = ${JSON.stringify(code)}
-mock_input = ${JSON.stringify(inputStr)}
+raw_inputs = ${JSON.stringify(normalizedInputs)}
 
-sys.stdin = io.StringIO(mock_input)
+# Detect if student code uses .split() on input
+has_split_call = ".split" in code_to_run
+
+input_idx = 0
+input_queue = list(raw_inputs)
+
+# Smart input function that handles both multiple input() calls and input().split()
+def smart_input(prompt=None):
+    global input_idx, input_queue
+    # If code uses .split() on the first line and multiple inputs were provided
+    if has_split_call and input_idx == 0 and len(input_queue) > 1:
+        input_idx += 1
+        return " ".join(input_queue)
+    
+    if input_idx < len(input_queue):
+        val = input_queue[input_idx]
+        input_idx += 1
+        return val
+    
+    # Safe fallback if input queue is exhausted (e.g., student has extra input() or trailing pause)
+    # Returning "0" prevents ValueError: could not convert string to float: ''
+    return "0"
+
+# Also set up standard stdin buffer with fallback lines
+input_lines = [s + "\\n" for s in raw_inputs]
+if not input_lines:
+    input_lines = ["0\\n"]
+# Add extra fallback lines so sys.stdin.readline() never hits EOF prematurely
+input_lines.extend(["0\\n"] * 5)
+sys.stdin = io.StringIO("".join(input_lines))
 sys.stdout = io.StringIO()
 sys.stderr = io.StringIO()
 
@@ -103,6 +138,7 @@ try:
     # Use clean globals with standard builtins and math library pre-loaded
     exec_globals = {
         "__name__": "__main__",
+        "input": smart_input,
         "math": math,
         "m": math,
         "pi": math.pi,
@@ -120,7 +156,17 @@ try:
     }
     exec(compiled, exec_globals)
 except Exception as e:
-    exec_error = str(e)
+    raw_msg = str(e)
+    if "could not convert string to float" in raw_msg:
+        exec_error = f"ValueError: {raw_msg} (Не удалось преобразовать значение в float. Проверьте правильность входных чисел или вызов float(input()))"
+    elif "can only concatenate str" in raw_msg and "float" in raw_msg:
+        exec_error = f"TypeError: {raw_msg} (В коде попытка сложить строку со значением float через '+'. В Python нужно: print('текст', число) или f-строку f'{{значение}}')"
+    elif "can only concatenate str" in raw_msg and "int" in raw_msg:
+        exec_error = f"TypeError: {raw_msg} (В коде попытка сложить строку с целым числом int через '+'. В Python нужно: print('текст', число) или f-строку)"
+    elif "invalid literal for int()" in raw_msg:
+        exec_error = f"ValueError: {raw_msg} (Не удалось преобразовать строку в int: возможно, передано вещественное число или пробелы, используйте float(input()))"
+    else:
+        exec_error = f"{type(e).__name__}: {raw_msg}"
 
 out_val = sys.stdout.getvalue()
 err_val = sys.stderr.getvalue()

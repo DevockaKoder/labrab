@@ -23,7 +23,51 @@ import {
   HelpCircle,
   Loader2,
   Upload,
+  Archive,
+  RotateCcw,
 } from 'lucide-react';
+
+// Helper to robustly parse interactive test inputs from various formats:
+// - Space-separated: "3 4" or "10 4 4"
+// - Comma-separated: "3, 4" or "10, 4, 4"
+// - Russian decimal comma: "3,5 4,2" -> "3.5", "4.2"
+// - Newline-separated: "3\n4"
+// - Semicolons: "3,5; 4,2"
+export function parseInteractiveInputs(inputStr: string): string[] {
+  if (!inputStr || !inputStr.trim()) return [];
+
+  const lines = inputStr.split(/\r?\n/);
+  const result: string[] = [];
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    // Replace semicolons with spaces
+    let normalized = line.replace(/;/g, ' ');
+
+    // Normalize commas followed by spaces: "3, 4" -> "3 4"
+    normalized = normalized.replace(/\s*,\s+/g, ' ');
+
+    // If multiple commas like "10,4,4", replace them with spaces
+    if ((normalized.match(/,/g) || []).length > 1) {
+      normalized = normalized.replace(/,/g, ' ');
+    }
+
+    // Split by whitespace
+    const tokens = normalized.split(/\s+/).filter(Boolean);
+
+    for (let token of tokens) {
+      // If token is decimal number with Russian comma e.g. "3,5" or "-1,2"
+      if (/^-?\d+,\d+$/.test(token)) {
+        token = token.replace(',', '.');
+      }
+      result.push(token);
+    }
+  }
+
+  return result;
+}
 
 interface StudentGradingViewProps {
   submissions: StudentSubmission[];
@@ -32,6 +76,7 @@ interface StudentGradingViewProps {
   onNavigateToSimilarity: (studentAId: string, studentBId: string) => void;
   onDeleteSubmission?: (id: string) => void;
   onUpdateSubmission?: (updated: StudentSubmission) => void;
+  onToggleArchive?: (studentId: string) => void;
   onOpenUpload?: () => void;
 }
 
@@ -42,6 +87,7 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
   onNavigateToSimilarity,
   onDeleteSubmission,
   onUpdateSubmission,
+  onToggleArchive,
   onOpenUpload,
 }) => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'passed' | 'failed' | 'not_found'>('all');
@@ -216,9 +262,9 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
   const handleRunInteractive = async (taskId: string, code: string) => {
     setIsReRunning(taskId);
     const inputStr = customInputs[taskId] || '';
-    const rawInputs = inputStr ? inputStr.split(/\r?\n/).map((s) => s.trim()) : [];
+    const parsedInputs = parseInteractiveInputs(inputStr);
     try {
-      const res = await runPythonCode(code, rawInputs);
+      const res = await runPythonCode(code, parsedInputs);
       setInteractiveOutput((prev) => ({
         ...prev,
         [taskId]: {
@@ -231,7 +277,7 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
         ...prev,
         [taskId]: {
           stdout: '',
-          error: err.message,
+          error: err.message || String(err),
         },
       }));
     } finally {
@@ -239,19 +285,30 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
     }
   };
 
+  const activeSubmissions = submissions.filter((s) => !s.isArchived);
+  const archivedSubmissions = submissions.filter((s) => !!s.isArchived);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* Sidebar: Submissions list */}
       <div className="lg:col-span-4 space-y-3">
         <div className="flex items-center justify-between px-1">
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Студенты ({submissions.length})
+            На проверке ({activeSubmissions.length})
+            {archivedSubmissions.length > 0 && ` • Архив: ${archivedSubmissions.length}`}
           </h2>
           <span className="text-[11px] text-slate-400">Выберите для просмотра</span>
         </div>
 
         <div className="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
-          {submissions.map((sub) => {
+          {/* Active Submissions */}
+          {activeSubmissions.length === 0 && archivedSubmissions.length > 0 && (
+            <div className="p-4 rounded-xl border border-dashed border-emerald-300 bg-emerald-50/50 text-center text-xs text-emerald-800">
+              Все работы перемещены в архив (проверены)!
+            </div>
+          )}
+
+          {activeSubmissions.map((sub) => {
             const isSelected = sub.id === currentStudent.id;
             const hasHighSimilarity = (sub.topSimilarity?.similarityPercent || 0) >= 70;
 
@@ -267,7 +324,7 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="truncate">
+                  <div className="truncate flex-1">
                     <h4 className="text-sm font-semibold text-slate-900 truncate">
                       {sub.studentName}
                     </h4>
@@ -276,21 +333,37 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
                     </p>
                   </div>
 
-                  {/* Grade Score 3-Point Pill */}
+                  {/* Grade Score 3-Point Pill and Archive Action */}
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-bold whitespace-nowrap border shadow-2xs ${
-                        sub.gradeScale3 === 3
-                          ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                          : sub.gradeScale3 === 2
-                          ? 'bg-amber-100 text-amber-800 border-amber-200'
-                          : sub.gradeScale3 === 1
-                          ? 'bg-orange-100 text-orange-800 border-orange-200'
-                          : 'bg-rose-100 text-rose-800 border-rose-200'
-                      }`}
-                    >
-                      {sub.gradeScale3} / 3 б.
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-bold whitespace-nowrap border shadow-2xs ${
+                          sub.gradeScale3 === 3
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                            : sub.gradeScale3 === 2
+                            ? 'bg-amber-100 text-amber-800 border-amber-200'
+                            : sub.gradeScale3 === 1
+                            ? 'bg-orange-100 text-orange-800 border-orange-200'
+                            : 'bg-rose-100 text-rose-800 border-rose-200'
+                        }`}
+                      >
+                        {sub.gradeScale3} / 3 б.
+                      </span>
+
+                      {onToggleArchive && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleArchive(sub.id);
+                          }}
+                          className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-100/60 transition-colors"
+                          title="Убрать в архив (перенести вниз)"
+                        >
+                          <Archive className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                     <span className="text-[10px] text-slate-400 font-mono">
                       {sub.totalScore}/{sub.maxPossibleScore} зач.
                     </span>
@@ -342,6 +415,74 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
               </div>
             );
           })}
+
+          {/* Archived Submissions Section - at the bottom */}
+          {archivedSubmissions.length > 0 && (
+            <div className="pt-3 mt-3 border-t border-slate-200">
+              <div className="flex items-center justify-between px-1 mb-2">
+                <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+                  <Archive className="w-3.5 h-3.5 text-slate-400" />
+                  В архиве / Отзыв отправлен ({archivedSubmissions.length})
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">внизу списка</span>
+              </div>
+
+              <div className="space-y-2">
+                {archivedSubmissions.map((sub) => {
+                  const isSelected = sub.id === currentStudent.id;
+
+                  return (
+                    <div
+                      key={sub.id}
+                      id={`student-archived-${sub.id}`}
+                      onClick={() => onSelectStudent(sub.id)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                        isSelected
+                          ? 'bg-slate-100/90 border-slate-400 ring-2 ring-slate-400/20 shadow-xs'
+                          : 'bg-slate-50/80 border-slate-200 hover:border-slate-300 hover:bg-slate-100/50 opacity-80 hover:opacity-100'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="truncate flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="text-xs font-semibold text-slate-700 truncate">
+                              {sub.studentName}
+                            </h4>
+                            <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-200/70 text-slate-600 font-medium">
+                              Архив
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 font-mono truncate">
+                            {sub.groupName} • {sub.fileName}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-200 text-slate-700 border border-slate-300">
+                            {sub.gradeScale3} / 3 б.
+                          </span>
+
+                          {onToggleArchive && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleArchive(sub.id);
+                              }}
+                              className="p-1 rounded-md text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                              title="Вернуть из архива в активный список"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -356,6 +497,12 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
                 <span className="text-xs px-2.5 py-0.5 rounded-md font-semibold bg-slate-100 text-slate-700">
                   {currentStudent.groupName}
                 </span>
+                {currentStudent.isArchived && (
+                  <span className="text-xs px-2 py-0.5 rounded-md font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                    <Archive className="w-3 h-3" />
+                    В архиве (отзыв отправлен)
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-500 mt-1">
                 Файл: <span className="font-mono text-slate-700">{currentStudent.fileName}</span> • Загружено в {currentStudent.uploadedAt}
@@ -381,6 +528,25 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
                 )}
               </button>
 
+              {onToggleArchive && (
+                <button
+                  onClick={() => onToggleArchive(currentStudent.id)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-2xs ${
+                    currentStudent.isArchived
+                      ? 'bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100'
+                      : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-indigo-700 hover:border-indigo-300'
+                  }`}
+                  title={
+                    currentStudent.isArchived
+                      ? 'Работа находится в архиве. Нажмите, чтобы вернуть в активный список'
+                      : 'Убрать работу в архив (перенести в конец списка после отправки отзыва)'
+                  }
+                >
+                  <Archive className="w-3.5 h-3.5" />
+                  <span>{currentStudent.isArchived ? 'В архиве (вернуть)' : 'В архив (вниз)'}</span>
+                </button>
+              )}
+
               {onDeleteSubmission && (
                 <button
                   onClick={() => onDeleteSubmission(currentStudent.id)}
@@ -392,6 +558,22 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
               )}
             </div>
           </div>
+
+          {/* Prompt to archive when feedback was copied */}
+          {copiedFeedback && !currentStudent.isArchived && onToggleArchive && (
+            <div className="mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-emerald-900">
+              <div className="flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>Отзыв скопирован в буфер обмена! Перенести эту работу в архив (вниз списка)?</span>
+              </div>
+              <button
+                onClick={() => onToggleArchive(currentStudent.id)}
+                className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-colors shadow-2xs whitespace-nowrap"
+              >
+                Убрать в архив
+              </button>
+            </div>
+          )}
 
           {/* Plagiarism Banner if applicable */}
           {currentStudent.topSimilarity && currentStudent.topSimilarity.similarityPercent >= 70 && (
@@ -923,24 +1105,69 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
 
                     {/* Interactive re-run with custom inputs */}
                     {res?.codeFound && (
-                      <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2">
-                        <span className="text-xs font-semibold text-slate-800 block">
-                          Интерактивная проверка с произвольными данными
-                        </span>
+                      <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                          <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
+                            <Play className="w-3.5 h-3.5 text-indigo-600 fill-indigo-600" />
+                            Интерактивная проверка с произвольными данными
+                          </span>
+                          {task.testCases && task.testCases[0]?.inputs && (
+                            <span className="text-[11px] text-slate-500 font-mono">
+                              {task.testCases[0].inputs.length === 0
+                                ? 'Ввод не требуется'
+                                : `Параметров для input(): ${task.testCases[0].inputs.length}`}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Quick test presets if available */}
+                        {task.testCases && task.testCases.length > 0 && task.testCases[0].inputs.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            <span className="text-[11px] text-slate-400">Быстрый тест:</span>
+                            {task.testCases.map((tc, idx) => (
+                              <button
+                                key={tc.id}
+                                type="button"
+                                onClick={() =>
+                                  setCustomInputs((prev) => ({
+                                    ...prev,
+                                    [task.id]: tc.inputs.join(' '),
+                                  }))
+                                }
+                                className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-[11px] font-mono border border-slate-200 transition-colors cursor-pointer"
+                                title={`Подставить данные теста: [${tc.inputs.join(', ')}]`}
+                              >
+                                Тест {idx + 1}: [{tc.inputs.join(', ')}]
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
                         <div className="flex flex-col sm:flex-row gap-2">
                           <input
                             type="text"
-                            placeholder="Входные значения через перевод строки или пробел (например: 10)"
+                            placeholder={
+                              task.testCases[0]?.inputs.length === 0
+                                ? 'Задача не требует ввода (нажмите Запустить)'
+                                : task.testCases[0]?.inputs.length > 1
+                                ? `Входные данные через пробел, например: ${task.testCases[0].inputs.join(' ')}`
+                                : `Входное число, например: ${task.testCases[0]?.inputs[0] ?? '10'}`
+                            }
                             value={customInputs[task.id] || ''}
                             onChange={(e) =>
                               setCustomInputs((prev) => ({ ...prev, [task.id]: e.target.value }))
                             }
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleRunInteractive(task.id, res.studentSnippet);
+                              }
+                            }}
                             className="flex-1 text-xs px-3 py-1.5 rounded-lg border border-slate-300 font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                           />
                           <button
                             onClick={() => handleRunInteractive(task.id, res.studentSnippet)}
                             disabled={isReRunning === task.id}
-                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-50"
+                            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
                           >
                             <Play className="w-3.5 h-3.5 fill-current" />
                             <span>{isReRunning === task.id ? 'Запуск...' : 'Запустить'}</span>
@@ -948,14 +1175,18 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
                         </div>
 
                         {interactiveOutput[task.id] && (
-                          <div className="mt-2 p-2.5 rounded-lg bg-slate-900 text-slate-100 font-mono text-xs">
-                            <span className="text-slate-400 text-[10px] block mb-1">Вывод в stdout:</span>
-                            <pre className="whitespace-pre-wrap">
+                          <div className="mt-2 p-3 rounded-lg bg-slate-900 text-slate-100 font-mono text-xs space-y-1.5">
+                            <span className="text-slate-400 text-[10px] block">Вывод в stdout:</span>
+                            <pre className="whitespace-pre-wrap text-emerald-400">
                               {interactiveOutput[task.id].stdout}
                             </pre>
                             {interactiveOutput[task.id].error && (
-                              <div className="text-rose-400 text-xs mt-1">
-                                Ошибка: {interactiveOutput[task.id].error}
+                              <div className="text-rose-400 text-xs pt-2 border-t border-slate-800 flex items-start gap-1.5">
+                                <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-semibold block">Ошибка выполнения:</span>
+                                  <span className="text-rose-300 whitespace-pre-wrap">{interactiveOutput[task.id].error}</span>
+                                </div>
                               </div>
                             )}
                           </div>

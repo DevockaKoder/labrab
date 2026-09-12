@@ -92,6 +92,25 @@ export default function App() {
     setSubmissions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
   };
 
+  const handleToggleArchive = (studentId: string) => {
+    setSubmissions((prev) =>
+      prev.map((s) => {
+        if (s.id === studentId) {
+          const nextArchived = !s.isArchived;
+          return {
+            ...s,
+            isArchived: nextArchived,
+            feedbackSent: nextArchived ? true : s.feedbackSent,
+            archivedAt: nextArchived
+              ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : undefined,
+          };
+        }
+        return s;
+      })
+    );
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
@@ -115,6 +134,7 @@ export default function App() {
             onNavigateToSimilarity={handleNavigateToSimilarity}
             onDeleteSubmission={handleDeleteSubmission}
             onUpdateSubmission={handleUpdateSubmission}
+            onToggleArchive={handleToggleArchive}
             onOpenUpload={() => setIsUploadOpen(true)}
           />
         )}
@@ -137,6 +157,7 @@ export default function App() {
               setActiveTab('grading');
             }}
             onNavigateToSimilarity={handleNavigateToSimilarity}
+            onToggleArchive={handleToggleArchive}
             onOpenUpload={() => setIsUploadOpen(true)}
           />
         )}

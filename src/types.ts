@@ -99,6 +99,9 @@ export interface StudentSubmission {
   gradePercentage: number;
   gradeScale3: GradeScale3;
   gradeScale3Details: GradeScale3Details;
+  isArchived?: boolean;
+  feedbackSent?: boolean;
+  archivedAt?: string;
   aiDetection?: AiDetectionResult;
   topSimilarity?: {
     withStudentId: string;

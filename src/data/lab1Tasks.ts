@@ -2,9 +2,9 @@ import { LabTask } from '../types';
 
 // Helper to extract numbers from output
 export function extractNumbers(text: string): number[] {
-  const matches = text.match(/-?\d+(?:[.,]\d+)?/g);
+  const matches = text.match(/-?\d+(?:[.,]\d+)?(?:[eE][+-]?\d+)?/g);
   if (!matches) return [];
-  return matches.map((m) => parseFloat(m.replace(',', '.')));
+  return matches.map((m) => parseFloat(m.replace(',', '.'))).filter((n) => !isNaN(n));
 }
 
 // Helper to compare float arrays with tolerance

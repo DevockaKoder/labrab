@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { StudentSubmission } from '../types';
 import { LAB1_TASKS } from '../data/lab1Tasks';
-import { Download, Copy, Check, FileSpreadsheet, ShieldAlert, ArrowUpDown, Bot, UserCheck, Upload } from 'lucide-react';
+import { Download, Copy, Check, FileSpreadsheet, ShieldAlert, ArrowUpDown, Bot, UserCheck, Upload, Archive, RotateCcw } from 'lucide-react';
 
 interface SummaryTableProps {
   submissions: StudentSubmission[];
   onSelectStudent: (id: string) => void;
   onNavigateToSimilarity: (studentAId: string, studentBId: string) => void;
+  onToggleArchive?: (studentId: string) => void;
   onOpenUpload?: () => void;
 }
 
@@ -14,6 +15,7 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
   submissions,
   onSelectStudent,
   onNavigateToSimilarity,
+  onToggleArchive,
   onOpenUpload,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -43,8 +45,13 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
     );
   }
 
-  // Sorting
+  // Sorting: archived submissions always go to the bottom
   const sortedSubmissions = [...submissions].sort((a, b) => {
+    // If one is archived and the other isn't, archived always goes to the bottom
+    if (!!a.isArchived !== !!b.isArchived) {
+      return a.isArchived ? 1 : -1;
+    }
+
     let cmp = 0;
     if (sortBy === 'grade3') {
       cmp = (b.gradeScale3 ?? 0) - (a.gradeScale3 ?? 0);
@@ -183,8 +190,15 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">Итоговая ведомость группы</h3>
-            <p className="text-xs text-slate-500">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-900">Итоговая ведомость группы</h3>
+              {submissions.some((s) => s.isArchived) && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
+                  Архив: {submissions.filter((s) => s.isArchived).length} (перенесены вниз)
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
               Средний зачётный балл: {Math.round(avgScore * 10) / 10} / {submissions[0]?.maxPossibleScore || LAB1_TASKS.filter((t) => !t.isSample).length} (задачи-примеры 1.1, 2.1, 3.1, 3.2, 4.1 исключены)
             </p>
           </div>
@@ -291,15 +305,29 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
               {sortedSubmissions.map((sub, idx) => {
                 const isHighRisk = (sub.topSimilarity?.similarityPercent || 0) >= 70;
                 return (
-                  <tr key={sub.id} className="hover:bg-slate-50/70 transition-colors">
+                  <tr
+                    key={sub.id}
+                    className={`transition-colors ${
+                      sub.isArchived
+                        ? 'bg-slate-50/75 opacity-75 hover:opacity-100 hover:bg-slate-100/60'
+                        : 'hover:bg-slate-50/70'
+                    }`}
+                  >
                     <td className="p-3 text-center text-slate-400 font-mono">{idx + 1}</td>
                     <td className="p-3 font-semibold text-slate-900">
-                      <button
-                        onClick={() => onSelectStudent(sub.id)}
-                        className="hover:text-indigo-600 text-left"
-                      >
-                        {sub.studentName}
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => onSelectStudent(sub.id)}
+                          className="hover:text-indigo-600 text-left"
+                        >
+                          {sub.studentName}
+                        </button>
+                        {sub.isArchived && (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-200 text-slate-600 font-medium">
+                            Архив
+                          </span>
+                        )}
+                      </div>
                       <span className="block text-[11px] font-normal text-slate-400 font-mono">{sub.fileName}</span>
                     </td>
                     <td className="p-3 text-slate-600 font-mono">{sub.groupName}</td>
@@ -387,7 +415,7 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
                       )}
                     </td>
                     <td className="p-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => onSelectStudent(sub.id)}
                           className="px-2.5 py-1 rounded-md text-xs font-medium text-indigo-600 hover:bg-indigo-50"
@@ -405,6 +433,27 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
                             className="px-2.5 py-1 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50"
                           >
                             Сравнить
+                          </button>
+                        )}
+                        {onToggleArchive && (
+                          <button
+                            onClick={() => onToggleArchive(sub.id)}
+                            className={`p-1.5 rounded-lg text-xs transition-colors ${
+                              sub.isArchived
+                                ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
+                                : 'text-slate-400 hover:text-indigo-600 hover:bg-slate-100'
+                            }`}
+                            title={
+                              sub.isArchived
+                                ? 'Вернуть из архива в активный список'
+                                : 'Убрать в архив (перенести вниз списка)'
+                            }
+                          >
+                            {sub.isArchived ? (
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            ) : (
+                              <Archive className="w-3.5 h-3.5" />
+                            )}
                           </button>
                         )}
                       </div>
