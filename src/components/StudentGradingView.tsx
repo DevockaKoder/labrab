@@ -25,6 +25,9 @@ import {
   Upload,
   Archive,
   RotateCcw,
+  Eye,
+  X,
+  FileText,
 } from 'lucide-react';
 
 // Helper to robustly parse interactive test inputs from various formats:
@@ -69,6 +72,59 @@ export function parseInteractiveInputs(inputStr: string): string[] {
   return result;
 }
 
+// Generates concise feedback for the student, including ONLY erroneous or not found tasks (excluding sample tasks)
+export function generateStudentFeedback(currentStudent: StudentSubmission): string {
+  let report = `Результаты проверки лабораторной работы №1:\n`;
+  report += `Студент: ${currentStudent.studentName} (${currentStudent.groupName})\n`;
+  report += `Оценка: ${currentStudent.gradeScale3} из 3 (${currentStudent.gradeScale3Details?.verdictTitle || ''})\n`;
+  if (currentStudent.gradeScale3Details?.description) {
+    report += `Пояснение: ${currentStudent.gradeScale3Details.description}\n`;
+  }
+  report += `Зачётные задачи: набрано ${currentStudent.totalScore} из ${currentStudent.maxPossibleScore} (${currentStudent.gradePercentage}%)\n`;
+
+  if (currentStudent.topSimilarity && currentStudent.topSimilarity.similarityPercent >= 70) {
+    report += `\nВнимание: Система зафиксировала повышенную схожесть кода (${currentStudent.topSimilarity.similarityPercent}%) с работой другого студента (${currentStudent.topSimilarity.withStudentName}). Требуется проверка оригинальности.\n`;
+  }
+
+  if (currentStudent.aiDetection && currentStudent.aiDetection.aiProbability >= 40) {
+    report += `\nКонтроль авторства (ИИ): Вероятность генерации кода составляет ${currentStudent.aiDetection.aiProbability}% (${currentStudent.aiDetection.verdict === 'likely_ai' ? 'Высокая' : 'Умеренная'}).\n`;
+    if (currentStudent.aiDetection.defenseQuestions?.length) {
+      report += `Вопросы для очной защиты:\n`;
+      currentStudent.aiDetection.defenseQuestions.forEach((q, idx) => {
+        report += `  ${idx + 1}. ${q}\n`;
+      });
+    }
+  }
+
+  // Filter out sample tasks from методичка (1.1, 2.1, 3.1, 3.2, 4.1)
+  const gradedTasks = LAB1_TASKS.filter((t) => !t.isSample);
+
+  // Keep ONLY problem tasks (erroneous or not found)
+  const problemTasks = gradedTasks.filter((t) => {
+    const r = currentStudent.results[t.id];
+    return !r || r.status === 'not_found' || r.status === 'failed';
+  });
+
+  if (problemTasks.length === 0) {
+    report += `\nЗамечания по задачам:\nОшибочных или нерешённых задач нет (все зачётные задания выполнены верно).\n`;
+  } else {
+    report += `\nЗамечания и нерешённые задания (${problemTasks.length}):\n`;
+    problemTasks.forEach((t) => {
+      const r = currentStudent.results[t.id];
+      if (!r || r.status === 'not_found') {
+        report += `- Задание ${t.id} (${t.title}): Не решено / отсутствует в файле\n`;
+      } else {
+        const failMsg = r.runtimeError || r.tests.find((test) => !test.passed)?.errorMessage || 'Несовпадение ответа с эталоном';
+        const astViol = r.astChecks.find((a) => !a.passed)?.message;
+        const reason = astViol ? `нарушено требование методички (${astViol})` : failMsg;
+        report += `- Задание ${t.id} (${t.title}): Ошибка — ${reason}\n`;
+      }
+    });
+  }
+
+  return report.trim();
+}
+
 interface StudentGradingViewProps {
   submissions: StudentSubmission[];
   selectedStudentId: string;
@@ -94,6 +150,7 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const [copiedFeedback, setCopiedFeedback] = useState(false);
   const [copiedQuestions, setCopiedQuestions] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [isAnalyzingGemini, setIsAnalyzingGemini] = useState(false);
 
   // Interactive re-test state
@@ -166,57 +223,7 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
   };
 
   const handleCopyFeedback = () => {
-    let report = `Результаты проверки лабораторной работы №1:\n`;
-    report += `Студент: ${currentStudent.studentName} (${currentStudent.groupName})\n`;
-    report += `Оценка: ${currentStudent.gradeScale3} из 3 (${currentStudent.gradeScale3Details?.verdictTitle || ''})\n`;
-    report += `Пояснение: ${currentStudent.gradeScale3Details?.description || ''}\n`;
-    report += `Зачётные задачи: набрано ${currentStudent.totalScore} из ${currentStudent.maxPossibleScore} (${currentStudent.gradePercentage}%)\n`;
-    report += `Шкала оценивания: 3 - отлично (1 несущественная ошибка допустима), 2 - есть ошибки, 1 - много ошибок или нейросеть, 0 - ничего не работает.\n`;
-    report += `Примечание: Задачи 1.1, 2.1, 3.1, 3.2, 4.1 являются примерами из методички и не учитываются в общей оценке успеваемости.\n`;
-
-    if (currentStudent.topSimilarity && currentStudent.topSimilarity.similarityPercent >= 70) {
-      report += `\nВнимание: Система зафиксировала повышенную схожесть кода (${currentStudent.topSimilarity.similarityPercent}%) с работой другого студента (${currentStudent.topSimilarity.withStudentName}). Требуется проверка оригинальности.\n`;
-    }
-
-    if (currentStudent.aiDetection && currentStudent.aiDetection.aiProbability >= 40) {
-      report += `\nКонтроль авторства (ИИ): Вероятность генерации кода составляет ${currentStudent.aiDetection.aiProbability}% (${currentStudent.aiDetection.verdict === 'likely_ai' ? 'Высокая' : 'Умеренная'}).\n`;
-      if (currentStudent.aiDetection.defenseQuestions?.length) {
-        report += `Вопросы для очной защиты:\n`;
-        currentStudent.aiDetection.defenseQuestions.forEach((q, idx) => {
-          report += `  ${idx + 1}. ${q}\n`;
-        });
-      }
-    }
-
-    report += `\nДетализация по зачётным заданиям:\n`;
-    const gradedTasks = LAB1_TASKS.filter((t) => !t.isSample);
-    gradedTasks.forEach((t) => {
-      const r = currentStudent.results[t.id];
-      if (!r || r.status === 'not_found') {
-        report += `- Задание ${t.id} (${t.title}): Не решено / отсутствует в файле (0/1)\n`;
-      } else if (r.status === 'passed') {
-        report += `- Задание ${t.id} (${t.title}): Выполнено верно (1/1)\n`;
-      } else {
-        const failMsg = r.runtimeError || r.tests.find((test) => !test.passed)?.errorMessage || 'Несовпадение ответа';
-        const astViol = r.astChecks.find((a) => !a.passed)?.message;
-        report += `- Задание ${t.id} (${t.title}): Балл: ${r.score}/1. Причина: ${astViol || failMsg}\n`;
-      }
-    });
-
-    report += `\nЗадания-образцы из методички (без начисления баллов):\n`;
-    const sampleTasks = LAB1_TASKS.filter((t) => t.isSample);
-    sampleTasks.forEach((t) => {
-      const r = currentStudent.results[t.id];
-      if (!r || r.status === 'not_found') {
-        report += `- Пример ${t.id} (${t.title}): Не найден в файле\n`;
-      } else if (r.status === 'passed') {
-        report += `- Пример ${t.id} (${t.title}): Проверен корректно\n`;
-      } else {
-        const failMsg = r.runtimeError || r.tests.find((test) => !test.passed)?.errorMessage || 'Ошибка';
-        report += `- Пример ${t.id} (${t.title}): Замечание (${failMsg})\n`;
-      }
-    });
-
+    const report = generateStudentFeedback(currentStudent);
     navigator.clipboard.writeText(report);
     setCopiedFeedback(true);
     setTimeout(() => setCopiedFeedback(false), 2000);
@@ -513,7 +520,7 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
               <button
                 onClick={handleCopyFeedback}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
-                title="Скопировать готовый фидбек для отправки студенту"
+                title="Скопировать готовый фидбек для отправки студенту (только ошибки и нерешенные задачи)"
               >
                 {copiedFeedback ? (
                   <>
@@ -526,6 +533,15 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
                     <span>Отзыв для студента</span>
                   </>
                 )}
+              </button>
+
+              <button
+                onClick={() => setShowFeedbackModal(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 transition-colors"
+                title="Посмотреть сформированный текст отзыва"
+              >
+                <Eye className="w-3.5 h-3.5 text-slate-500" />
+                <span className="hidden sm:inline">Просмотр</span>
               </button>
 
               {onToggleArchive && (
@@ -572,6 +588,66 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
               >
                 Убрать в архив
               </button>
+            </div>
+          )}
+
+          {/* Feedback Preview Modal */}
+          {showFeedbackModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full p-5 space-y-3">
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-bold text-slate-900">
+                      Отзыв для студента: {currentStudent.studentName}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setShowFeedbackModal(false)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="text-xs text-slate-500">
+                  В отзыве перечислены только ошибочные или нерешённые задания (без учёта образцов):
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-900 text-slate-100 font-mono text-xs whitespace-pre-wrap max-h-80 overflow-y-auto leading-relaxed border border-slate-800">
+                  {generateStudentFeedback(currentStudent)}
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <span className="text-[11px] text-slate-400">
+                    {currentStudent.isArchived ? 'Статус: в архиве' : 'Готово к отправке'}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleCopyFeedback}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-2xs"
+                    >
+                      {copiedFeedback ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-white" />
+                          <span>Скопировано!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-indigo-200" />
+                          <span>Скопировать в буфер</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setShowFeedbackModal(false)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+                    >
+                      Закрыть
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
