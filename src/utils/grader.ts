@@ -36,6 +36,9 @@ export async function gradeStudentCode(
       onProgress(i + 1, taskList.length, `${task.id} - ${task.title}`);
     }
 
+    // Yield to the browser event loop to keep UI smooth and allow garbage collection
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
     const snippet = tasksMap[task.id];
 
     if (!snippet || snippet.trim().length === 0) {
@@ -57,12 +60,21 @@ export async function gradeStudentCode(
     const testResults: TaskCheckResult['tests'] = [];
     const astResults: TaskCheckResult['astChecks'] = [];
     let runtimeError: string | undefined;
+    let taskIsLoopTimeout = false;
+    let taskIsMemoryLimit = false;
     let taskPassed = true;
 
-    // Run first test to capture AST checks
+    // Run tests
     for (let tIdx = 0; tIdx < task.testCases.length; tIdx++) {
       const tc = task.testCases[tIdx];
       const pyRes = await runPythonCode(snippet, tc.inputs);
+
+      if (pyRes.isLoopTimeout) {
+        taskIsLoopTimeout = true;
+      }
+      if (pyRes.isMemoryLimitExceeded) {
+        taskIsMemoryLimit = true;
+      }
 
       if (pyRes.error && !runtimeError) {
         runtimeError = pyRes.error;
@@ -141,6 +153,26 @@ export async function gradeStudentCode(
         actual,
         errorMessage: pyRes.error || (details && !passed ? details : undefined),
       });
+
+      // If this test hit an infinite loop or memory limit, short-circuit remaining tests for this task
+      // to avoid running redundant hangs or wasting browser RAM
+      if (pyRes.isLoopTimeout || pyRes.isMemoryLimitExceeded) {
+        for (let nextIdx = tIdx + 1; nextIdx < task.testCases.length; nextIdx++) {
+          const nextTc = task.testCases[nextIdx];
+          testResults.push({
+            testId: nextTc.id,
+            description: nextTc.description,
+            inputs: nextTc.inputs,
+            passed: false,
+            expected: nextTc.expectedValueDescription,
+            actual: pyRes.isLoopTimeout
+              ? 'Тест пропущен: в коде зафиксирован бесконечный цикл'
+              : 'Тест пропущен: в коде зафиксировано переполнение памяти',
+            errorMessage: pyRes.error,
+          });
+        }
+        break;
+      }
     }
 
     const astAllPassed = astResults.every((a) => a.passed);
@@ -166,6 +198,8 @@ export async function gradeStudentCode(
       tests: testResults,
       astChecks: astResults,
       runtimeError,
+      isLoopTimeout: taskIsLoopTimeout,
+      isMemoryLimitExceeded: taskIsMemoryLimit,
     };
   }
 

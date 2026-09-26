@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StudentSubmission } from '../types';
+import { StudentSubmission, TaskCheckResult } from '../types';
 import { LAB1_TASKS } from '../data/lab1Tasks';
 import { Download, Copy, Check, FileSpreadsheet, ShieldAlert, ArrowUpDown, Bot, UserCheck, Upload, Archive, RotateCcw } from 'lucide-react';
 
@@ -325,13 +325,29 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
                   >
                     <td className="p-3 text-center text-slate-400 font-mono">{idx + 1}</td>
                     <td className="p-3 font-semibold text-slate-900">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <button
                           onClick={() => onSelectStudent(sub.id)}
                           className="hover:text-indigo-600 text-left"
                         >
                           {sub.studentName}
                         </button>
+                        {(Object.values(sub.results) as TaskCheckResult[]).some((r) => r.isLoopTimeout) && (
+                          <span
+                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300"
+                            title="В коде был зафиксирован бесконечный цикл, успешно остановлен защитой"
+                          >
+                            ⚡ Цикл
+                          </span>
+                        )}
+                        {(Object.values(sub.results) as TaskCheckResult[]).some((r) => r.isMemoryLimitExceeded) && (
+                          <span
+                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-900 border border-purple-300"
+                            title="В коде зафиксировано переполнение памяти / спам print(), успешно остановлено защитой"
+                          >
+                            🛡️ Память
+                          </span>
+                        )}
                         {sub.isArchived && (
                           <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-200 text-slate-600 font-medium">
                             Архив

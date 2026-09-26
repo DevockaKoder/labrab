@@ -106,7 +106,7 @@ export function generateStudentFeedback(currentStudent: StudentSubmission): stri
   // Keep ONLY problem tasks (erroneous or not found)
   const problemTasks = gradedTasks.filter((t) => {
     const r = currentStudent.results[t.id];
-    return !r || r.status === 'not_found' || r.status === 'failed';
+    return !r || r.status === 'not_found' || r.status === 'failed' || r.status === 'syntax_error';
   });
 
   if (problemTasks.length === 0) {
@@ -118,6 +118,10 @@ export function generateStudentFeedback(currentStudent: StudentSubmission): stri
       const r = currentStudent.results[t.id];
       if (!r || r.status === 'not_found') {
         report += `- Задание ${t.id} (${t.title}): Не решено / отсутствует в файле\n`;
+      } else if (r.isLoopTimeout) {
+        report += `- Задание ${t.id} (${t.title}): Бесконечный цикл — программа зацикливается, проверьте условие выхода из while/for\n`;
+      } else if (r.isMemoryLimitExceeded) {
+        report += `- Задание ${t.id} (${t.title}): Переполнение памяти — код создаёт огромные данные или бесконечно печатает в print()\n`;
       } else {
         const failMsg = r.runtimeError || r.tests.find((test) => !test.passed)?.errorMessage || 'Несовпадение ответа с эталоном';
         const astViol = r.astChecks.find((a) => !a.passed)?.message;
@@ -160,7 +164,14 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
 
   // Interactive re-test state
   const [customInputs, setCustomInputs] = useState<{ [taskId: string]: string }>({});
-  const [interactiveOutput, setInteractiveOutput] = useState<{ [taskId: string]: { stdout: string; error?: string } }>({});
+  const [interactiveOutput, setInteractiveOutput] = useState<{
+    [taskId: string]: {
+      stdout: string;
+      error?: string;
+      isLoopTimeout?: boolean;
+      isMemoryLimitExceeded?: boolean;
+    };
+  }>({});
   const [isReRunning, setIsReRunning] = useState<string | null>(null);
 
   const currentStudent = submissions.find((s) => s.id === selectedStudentId) || submissions[0];
@@ -204,6 +215,26 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
           <FileQuestion className="w-3 h-3" /> {res?.isSample ? 'Образец не найден' : 'Не найдено'}
+        </span>
+      );
+    }
+    if (res.isLoopTimeout) {
+      return (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs"
+          title="Бесконечный цикл перехвачен системой защиты. Вкладка защищена от зависания."
+        >
+          <RotateCcw className="w-3 h-3 text-amber-700 animate-spin" /> Цикл перехвачен
+        </span>
+      );
+    }
+    if (res.isMemoryLimitExceeded) {
+      return (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-900 border border-purple-300 shadow-2xs"
+          title="Переполнение памяти предотвращено системой защиты"
+        >
+          <ShieldAlert className="w-3 h-3 text-purple-700" /> Защита памяти
         </span>
       );
     }
@@ -281,16 +312,21 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
       setInteractiveOutput((prev) => ({
         ...prev,
         [taskId]: {
-          stdout: res.stdout || '(нет вывода print)',
+          stdout: res.stdout || (res.error ? '' : '(нет вывода print)'),
           error: res.error,
+          isLoopTimeout: res.isLoopTimeout,
+          isMemoryLimitExceeded: res.isMemoryLimitExceeded,
         },
       }));
     } catch (err: any) {
+      const errMsg = err?.message || String(err);
       setInteractiveOutput((prev) => ({
         ...prev,
         [taskId]: {
           stdout: '',
-          error: err.message || String(err),
+          error: errMsg,
+          isLoopTimeout: errMsg.includes('бесконечный цикл') || errMsg.includes('Time Limit') || errMsg.includes('TimeoutError'),
+          isMemoryLimitExceeded: errMsg.includes('Memory') || errMsg.includes('памяти'),
         },
       }));
     } finally {
@@ -1082,6 +1118,50 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
                       )}
                     </div>
 
+                    {/* Guard callout banner if loop timeout, memory error, or runtime error occurred */}
+                    {res && (res.isLoopTimeout || res.isMemoryLimitExceeded || res.runtimeError) && (
+                      <div
+                        className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
+                          res.isLoopTimeout
+                            ? 'bg-amber-50/90 border-amber-300 text-amber-950 shadow-2xs'
+                            : res.isMemoryLimitExceeded
+                            ? 'bg-purple-50/90 border-purple-300 text-purple-950 shadow-2xs'
+                            : 'bg-rose-50 border-rose-200 text-rose-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 font-bold">
+                          {res.isLoopTimeout ? (
+                            <>
+                              <RotateCcw className="w-4 h-4 text-amber-700 animate-spin flex-shrink-0" />
+                              <span>Защита от зависания: Бесконечный цикл перехвачен</span>
+                            </>
+                          ) : res.isMemoryLimitExceeded ? (
+                            <>
+                              <ShieldAlert className="w-4 h-4 text-purple-700 flex-shrink-0" />
+                              <span>Защита памяти браузера: Предотвращён сбой (OOM)</span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                              <span>Ошибка во время выполнения скрипта студента</span>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-[11px] leading-relaxed">
+                          {res.isLoopTimeout
+                            ? 'В коде задачи сработал бесконечный цикл (while или for). Система защиты автоматически остановила выполнение, сохранив страницу браузера стабильной и отзывчивой.'
+                            : res.isMemoryLimitExceeded
+                            ? 'Код попытался создать чрезмерно большой массив/строку в памяти или бесконечно выводил данные через print(). Выполнение было безопасно прервано для предотвращения падения браузера.'
+                            : 'Скрипт завершился с исключением в среде выполнения Python.'}
+                        </p>
+                        {res.runtimeError && (
+                          <div className="font-mono text-[11px] bg-white/90 p-2 rounded-lg border border-current/20 whitespace-pre-wrap text-rose-800">
+                            {res.runtimeError}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* AST Checks (restrictions) */}
                     {res && res.astChecks.length > 0 && (
                       <div className="space-y-1.5">
@@ -1265,11 +1345,31 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
                               {interactiveOutput[task.id].stdout}
                             </pre>
                             {interactiveOutput[task.id].error && (
-                              <div className="text-rose-400 text-xs pt-2 border-t border-slate-800 flex items-start gap-1.5">
-                                <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-                                <div>
-                                  <span className="font-semibold block">Ошибка выполнения:</span>
-                                  <span className="text-rose-300 whitespace-pre-wrap">{interactiveOutput[task.id].error}</span>
+                              <div
+                                className={`text-xs pt-2.5 pb-1 px-2.5 rounded-lg border flex items-start gap-2 ${
+                                  interactiveOutput[task.id].isLoopTimeout
+                                    ? 'bg-amber-950/40 border-amber-800 text-amber-200'
+                                    : interactiveOutput[task.id].isMemoryLimitExceeded
+                                    ? 'bg-purple-950/40 border-purple-800 text-purple-200'
+                                    : 'border-slate-800 text-rose-300'
+                                }`}
+                              >
+                                {interactiveOutput[task.id].isLoopTimeout ? (
+                                  <RotateCcw className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5 animate-spin" />
+                                ) : interactiveOutput[task.id].isMemoryLimitExceeded ? (
+                                  <ShieldAlert className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                                ) : (
+                                  <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                                )}
+                                <div className="space-y-0.5">
+                                  <span className="font-semibold block text-white">
+                                    {interactiveOutput[task.id].isLoopTimeout
+                                      ? 'Защита от зависания: Бесконечный цикл перехвачен'
+                                      : interactiveOutput[task.id].isMemoryLimitExceeded
+                                      ? 'Защита памяти: Превышение лимита предотвращено'
+                                      : 'Ошибка выполнения:'}
+                                  </span>
+                                  <span className="whitespace-pre-wrap">{interactiveOutput[task.id].error}</span>
                                 </div>
                               </div>
                             )}

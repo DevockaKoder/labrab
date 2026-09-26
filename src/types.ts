@@ -54,6 +54,8 @@ export interface TaskCheckResult {
     message: string;
   }[];
   runtimeError?: string;
+  isLoopTimeout?: boolean;
+  isMemoryLimitExceeded?: boolean;
   stdoutLogs?: string;
 }
 

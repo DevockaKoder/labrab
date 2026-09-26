@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             </div>
 
-            {/* Pyodide Runtime Indicator */}
+            {/* Pyodide Runtime Indicator & Protection Badge */}
             <div
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
                 isPyodideReady
@@ -101,6 +101,14 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>Загрузка Python...</span>
                 </>
               )}
+            </div>
+
+            <div
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-indigo-50 text-indigo-700 border-indigo-200"
+              title="Защита памяти и от бесконечных циклов: лимит 50 000 итераций, защита от зависаний вкладки и переполнения памяти"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Защита от циклов и памяти</span>
             </div>
 
             {/* Upload Button */}
