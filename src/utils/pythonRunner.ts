@@ -204,34 +204,37 @@ except Exception as e:
 
 if not exec_error and guarded_tree is not None:
     has_split_call = ".split" in code_to_run
-    input_idx = 0
-    input_queue = list(raw_inputs)
 
-    def smart_input(prompt=None):
-        nonlocal input_idx
-        if has_split_call and input_idx == 0 and len(input_queue) > 1:
-            input_idx += 1
-            return " ".join(input_queue)
-        if input_idx < len(input_queue):
-            val = input_queue[input_idx]
-            input_idx += 1
-            return val
-        return "0"
+    class _RunnerState:
+        def __init__(self, raw_inputs, has_split):
+            self.input_idx = 0
+            self.input_queue = list(raw_inputs)
+            self.has_split_call = has_split
+            self.loop_iterations = 0
+            self.start_time = time.time()
+            self.is_loop_timeout = False
+            self.is_memory_limit = False
 
-    loop_iterations = 0
-    start_time = time.time()
-    MAX_LOOP_STEPS = 50000
-    MAX_EXEC_SECONDS = 1.8
+        def smart_input(self, prompt=None):
+            if self.has_split_call and self.input_idx == 0 and len(self.input_queue) > 1:
+                self.input_idx += 1
+                return " ".join(self.input_queue)
+            if self.input_idx < len(self.input_queue):
+                val = self.input_queue[self.input_idx]
+                self.input_idx += 1
+                return str(val)
+            return "0"
 
-    def guard_check(lineno, loop_type):
-        nonlocal loop_iterations, is_loop_timeout
-        loop_iterations += 1
-        if loop_iterations > MAX_LOOP_STEPS:
-            is_loop_timeout = True
-            raise TimeoutError(f"Обнаружен бесконечный цикл {loop_type} (строка {lineno})! Превышен безопасный лимит {MAX_LOOP_STEPS} итераций. Проверьте условия выхода из цикла.")
-        if time.time() - start_time > MAX_EXEC_SECONDS:
-            is_loop_timeout = True
-            raise TimeoutError(f"Превышено максимальное время выполнения ({MAX_EXEC_SECONDS} сек, строка {lineno})! Возможно, в коде бесконечный цикл.")
+        def guard_check(self, lineno, loop_type):
+            self.loop_iterations += 1
+            if self.loop_iterations > 50000:
+                self.is_loop_timeout = True
+                raise TimeoutError(f"Обнаружен бесконечный цикл {loop_type} (строка {lineno})! Превышен безопасный лимит 50000 итераций. Проверьте условия выхода из цикла.")
+            if time.time() - self.start_time > 1.8:
+                self.is_loop_timeout = True
+                raise TimeoutError(f"Превышено максимальное время выполнения (1.8 сек, строка {lineno})! Возможно, в коде бесконечный цикл.")
+
+    state = _RunnerState(raw_inputs, has_split_call)
 
     out_buf = SafeLimitedOutput(25000)
     err_buf = SafeLimitedOutput(5000)
@@ -252,8 +255,8 @@ if not exec_error and guarded_tree is not None:
         compiled = compile(guarded_tree, '<student_code>', 'exec')
         exec_globals = {
             "__name__": "__main__",
-            "__guard_check": guard_check,
-            "input": smart_input,
+            "__guard_check": state.guard_check,
+            "input": state.smart_input,
             "math": math,
             "m": math,
             "pi": math.pi,
@@ -298,6 +301,10 @@ if not exec_error and guarded_tree is not None:
         sys.stdin = old_stdin
         out_val = out_buf.getvalue()
         err_val = err_buf.getvalue()
+        if state.is_loop_timeout:
+            is_loop_timeout = True
+        if state.is_memory_limit:
+            is_memory_limit = True
         gc.collect()
 
 json.dumps({
