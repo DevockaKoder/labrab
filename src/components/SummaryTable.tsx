@@ -91,19 +91,22 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
       csv += `"${s.studentName}","${s.groupName}","${s.fileName}",${s.gradeScale3},"${gradeTitle}",${s.totalScore},${s.maxPossibleScore},${s.gradePercentage}%,${simVal},${simWith},${aiProb},"${aiVerdict}"\n`;
     });
 
+    const isLab2 = submissions.some((s) => s.labId === 'lab2');
+    const labNumber = isLab2 ? 2 : 1;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `Ведомость_Лабораторная_1_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `Ведомость_Лабораторная_${labNumber}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const handleCopySummary = () => {
-    let text = `СВОДНАЯ ВЕДОМОСТЬ: Лабораторная работа №1 (Python IDLE)\n`;
-    text += `Шкала: 3 - 1 несущ. ошибка допустима, 2 - есть ошибки, 1 - много ошибок/ИИ, 0 - ничего не работает\n`;
+    const isLab2 = submissions.some((s) => s.labId === 'lab2');
+    let text = `СВОДНАЯ ВЕДОМОСТЬ: Лабораторная работа №${isLab2 ? 2 : 1} (Python)\n`;
+    text += `Шкала: 3 - отлично (>=90%), 2 - есть ошибки (70-89%), 1 - много ошибок/ИИ (50-69%), 0 - не зачтено (<50%)\n`;
     text += `Дата формирования: ${new Date().toLocaleDateString()}\n\n`;
     text += `№ | ФИО Студента | Группа | Оценка (0-3) | Баллы | % | Плагиат | ИИ-контроль\n`;
     text += `------------------------------------------------------------------------------------\n`;
@@ -199,7 +202,14 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
               )}
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Средний зачётный балл: {Math.round(avgScore * 10) / 10} / {submissions[0]?.maxPossibleScore || LAB1_TASKS.filter((t) => !t.isSample).length} (задачи-примеры 1.1, 2.1, 3.1, 3.2, 4.1 исключены)
+              {(() => {
+                const isLab2 = submissions.some((s) => s.labId === 'lab2');
+                const max = submissions[0]?.maxPossibleScore || (isLab2 ? 25 : 18);
+                const note = isLab2
+                  ? '(все 25 заданий зачётные, доп. не требуются)'
+                  : '(задачи-примеры 1.1, 2.1, 3.1, 3.2, 4.1 исключены)';
+                return `Средний зачётный балл: ${Math.round(avgScore * 10) / 10} / ${max} ${note}`;
+              })()}
             </p>
           </div>
 

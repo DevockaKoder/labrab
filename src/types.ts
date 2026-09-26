@@ -87,6 +87,7 @@ export interface GradeScale3Details {
 
 export interface StudentSubmission {
   id: string;
+  labId?: 'lab1' | 'lab2';
   studentName: string;
   groupName?: string;
   fileName: string;

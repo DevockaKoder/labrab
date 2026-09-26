@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StudentSubmission, SimilarityPair } from '../types';
 import { LAB1_TASKS } from '../data/lab1Tasks';
+import { LAB2_TASKS } from '../data/lab2Tasks';
 import { calculateCodeSimilarity } from '../utils/similarityEngine';
 import {
   ShieldAlert,
@@ -367,7 +368,7 @@ export const SimilarityMatrixView: React.FC<SimilarityMatrixViewProps> = ({
               className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white font-medium text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
             >
               <option value="all">Весь файл целиком</option>
-              {LAB1_TASKS.map((t) => (
+              {((studentA?.labId === 'lab2' || studentB?.labId === 'lab2') ? LAB2_TASKS : LAB1_TASKS).map((t) => (
                 <option key={t.id} value={t.id}>
                   Задача {t.id} ({t.title})
                 </option>

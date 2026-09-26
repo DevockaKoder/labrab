@@ -1,6 +1,7 @@
 import { LAB1_TASKS } from '../data/lab1Tasks';
-import { StudentSubmission, TaskCheckResult } from '../types';
-import { splitCodeIntoTasks, extractStudentHeader } from './codeParser';
+import { LAB2_TASKS } from '../data/lab2Tasks';
+import { StudentSubmission, TaskCheckResult, LabTask } from '../types';
+import { splitCodeIntoTasks, extractStudentHeader, detectLabType } from './codeParser';
 import { runPythonCode } from './pythonRunner';
 import { analyzeCodeForAiHeuristics } from './aiDetector';
 import { calculateGradeScale3 } from './gradeScale';
@@ -8,26 +9,31 @@ import { calculateGradeScale3 } from './gradeScale';
 export async function gradeStudentCode(
   rawCode: string,
   fileName: string,
-  onProgress?: (taskIndex: number, totalTasks: number, taskName: string) => void
+  onProgress?: (taskIndex: number, totalTasks: number, taskName: string) => void,
+  requestedLab?: 'lab1' | 'lab2'
 ): Promise<StudentSubmission> {
+  const labId: 'lab1' | 'lab2' = requestedLab || detectLabType(rawCode, fileName);
+  const taskList: LabTask[] = labId === 'lab2' ? LAB2_TASKS : LAB1_TASKS;
+
   const { studentName, groupName } = extractStudentHeader(rawCode, fileName);
-  const tasksMap = splitCodeIntoTasks(rawCode, fileName);
+  const tasksMap = splitCodeIntoTasks(rawCode, fileName, labId);
 
   const results: { [taskId: string]: TaskCheckResult } = {};
   let totalScore = 0;
   let maxPossibleScore = 0;
 
-  for (let i = 0; i < LAB1_TASKS.length; i++) {
-    const task = LAB1_TASKS[i];
+  for (let i = 0; i < taskList.length; i++) {
+    const task = taskList[i];
     const isSampleTask = !!task.isSample;
 
-    // Tasks 1.1, 2.1, 3.1, 3.2, 4.1 are manual samples and excluded from overall grading score
+    // In Lab 1, tasks 1.1, 2.1, 3.1, 3.2, 4.1 are manual samples.
+    // In Lab 2, all 25 tasks are graded (no samples).
     if (!isSampleTask) {
       maxPossibleScore += 1;
     }
 
     if (onProgress) {
-      onProgress(i + 1, LAB1_TASKS.length, `${task.id} - ${task.title}`);
+      onProgress(i + 1, taskList.length, `${task.id} - ${task.title}`);
     }
 
     const snippet = tasksMap[task.id];
@@ -169,6 +175,7 @@ export async function gradeStudentCode(
 
   return {
     id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+    labId,
     studentName,
     groupName,
     fileName,

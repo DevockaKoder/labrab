@@ -1,9 +1,11 @@
 import React from 'react';
-import { PlayCircle, ShieldAlert, FileSpreadsheet, BookOpen, Upload, CheckCircle2, Loader2 } from 'lucide-react';
+import { PlayCircle, ShieldAlert, FileSpreadsheet, BookOpen, Upload, CheckCircle2, Loader2, Layers } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: 'grading' | 'similarity' | 'summary' | 'tasks';
   setActiveTab: (tab: 'grading' | 'similarity' | 'summary' | 'tasks') => void;
+  activeLab: 'lab1' | 'lab2';
+  onSelectLab: (lab: 'lab1' | 'lab2') => void;
   submissionsCount: number;
   suspiciousCount: number;
   aiAlertCount?: number;
@@ -14,6 +16,8 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   setActiveTab,
+  activeLab,
+  onSelectLab,
   submissionsCount,
   suspiciousCount,
   aiAlertCount = 0,
@@ -24,28 +28,60 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="border-b border-slate-200 bg-white sticky top-0 z-30 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between py-3 gap-3">
-          {/* Logo & Title */}
+          {/* Logo & Title & Lab Switcher */}
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-700 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-100">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-700 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-100 flex-shrink-0">
               <span className="text-xl font-mono">Py</span>
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-semibold text-slate-900 tracking-tight">
-                  Проверка Лабораторной №1 по Python
+                  {activeLab === 'lab2'
+                    ? 'Проверка Лабораторной работы №2'
+                    : 'Проверка Лабораторной работы №1'}
                 </h1>
                 <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-700 border border-indigo-200/60">
-                  IDLE / 23 задачи
+                  {activeLab === 'lab2' ? '25 заданий (без доп.)' : 'IDLE / 23 задачи'}
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                Автотестирование вывода, AST-проверки ограничений и антиплагиат
+                {activeLab === 'lab2'
+                  ? 'Числовые типы данных, целочисленная арифметика, время и оператор выбора'
+                  : 'Автотестирование вывода, AST-проверки ограничений и антиплагиат'}
               </p>
             </div>
           </div>
 
           {/* Quick status & Actions */}
           <div className="flex items-center flex-wrap gap-2.5">
+            {/* Lab Switcher Toggle in Header */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200/80">
+              <button
+                type="button"
+                onClick={() => onSelectLab('lab1')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  activeLab === 'lab1'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Лабораторная работа №1 (23 задания, 18 зачётных)"
+              >
+                Лаб №1
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectLab('lab2')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  activeLab === 'lab2'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Лабораторная работа №2 (25 заданий, без доп.)"
+              >
+                Лаб №2
+              </button>
+            </div>
+
             {/* Pyodide Runtime Indicator */}
             <div
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
@@ -98,8 +134,11 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             )}
             {aiAlertCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-violet-100 text-violet-700 border border-violet-200">
-                {aiAlertCount} ИИ
+              <span
+                className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800"
+                title={`${aiAlertCount} работ с подозрением на ИИ`}
+              >
+                ИИ: {aiAlertCount}
               </span>
             )}
           </button>
@@ -114,10 +153,10 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <ShieldAlert className="w-4 h-4" />
-            <span>Антиплагиат и схожесть</span>
+            <span>Сравнение и плагиат</span>
             {suspiciousCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-xs bg-rose-100 text-rose-700 font-semibold animate-pulse">
-                {suspiciousCount} совп.
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-xs font-bold bg-rose-100 text-rose-700">
+                {suspiciousCount}
               </span>
             )}
           </button>
@@ -145,7 +184,10 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            <span>База задач методички (23)</span>
+            <span>Каталог заданий</span>
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-xs bg-slate-100 text-slate-600">
+              {activeLab === 'lab2' ? '25' : '23'}
+            </span>
           </button>
         </nav>
       </div>
