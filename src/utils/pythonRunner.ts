@@ -91,6 +91,7 @@ import io
 import ast
 import json
 import math
+import random
 import time
 import gc
 
@@ -227,12 +228,12 @@ if not exec_error and guarded_tree is not None:
 
         def guard_check(self, lineno, loop_type):
             self.loop_iterations += 1
-            if self.loop_iterations > 50000:
+            if self.loop_iterations > 2500000:
                 self.is_loop_timeout = True
-                raise TimeoutError(f"Обнаружен бесконечный цикл {loop_type} (строка {lineno})! Превышен безопасный лимит 50000 итераций. Проверьте условия выхода из цикла.")
-            if time.time() - self.start_time > 1.8:
+                raise TimeoutError(f"Обнаружен бесконечный цикл {loop_type} (строка {lineno})! Превышен безопасный лимит 2500000 итераций. Проверьте условия выхода из цикла.")
+            if time.time() - self.start_time > 5.0:
                 self.is_loop_timeout = True
-                raise TimeoutError(f"Превышено максимальное время выполнения (1.8 сек, строка {lineno})! Возможно, в коде бесконечный цикл.")
+                raise TimeoutError(f"Превышено максимальное время выполнения (5.0 сек, строка {lineno})! Возможно, в коде бесконечный цикл.")
 
     state = _RunnerState(raw_inputs, has_split_call)
 
@@ -271,6 +272,13 @@ if not exec_error and guarded_tree is not None:
             "ceil": math.ceil,
             "floor": math.floor,
             "fabs": math.fabs,
+            "random": random,
+            "randint": random.randint,
+            "randrange": random.randrange,
+            "choice": random.choice,
+            "uniform": random.uniform,
+            "sample": random.sample,
+            "shuffle": random.shuffle,
         }
         exec(compiled, exec_globals)
         exec_globals.clear()

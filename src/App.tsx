@@ -70,7 +70,7 @@ export default function App() {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const specificLab = targetLab || detectLabType(file.content, file.name);
+      const specificLab = targetLab || detectLabType(file.content, file.name, activeLab);
       detectedOrChosenLab = specificLab;
       setProgressText(`Проверка файла ${i + 1} из ${files.length}: ${file.name} (Лаб №${specificLab === 'lab2' ? 2 : 1})`);
 
