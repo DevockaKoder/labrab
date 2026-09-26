@@ -96,24 +96,35 @@ function splitCodeForLab1(code: string, fileName: string): { [taskId: string]: s
 
   // Split lines and scan for task markers like # 1.1, # Задача 1.2
   const taskMarkerRegex = /(?:^|\n)\s*#+\s*(?:задача|задание|task)?\s*([1-4]\.[1-7])\b/gi;
-  const matches: { taskId: string; index: number }[] = [];
+  const rawMatches: { taskId: string; index: number }[] = [];
   let m: RegExpExecArray | null;
 
   while ((m = taskMarkerRegex.exec(code)) !== null) {
-    matches.push({
+    rawMatches.push({
       taskId: m[1],
       index: m.index,
     });
   }
 
-  if (matches.length === 0) {
+  if (rawMatches.length === 0) {
     const printMarkerRegex = /(?:^|\n)\s*print\s*\(\s*["']([1-4]\.[1-7])\b/gi;
     while ((m = printMarkerRegex.exec(code)) !== null) {
-      matches.push({
+      rawMatches.push({
         taskId: m[1],
         index: m.index,
       });
     }
+  }
+
+  // Once a task ID is seen, do not register it again later in the file
+  const matches: { taskId: string; index: number }[] = [];
+  const seenTaskIds = new Set<string>();
+  for (const item of rawMatches) {
+    if (seenTaskIds.has(item.taskId)) {
+      continue;
+    }
+    seenTaskIds.add(item.taskId);
+    matches.push(item);
   }
 
   if (matches.length === 0) {
@@ -127,34 +138,45 @@ function splitCodeForLab1(code: string, fileName: string): { [taskId: string]: s
 function splitCodeForLab2(code: string, fileName: string): { [taskId: string]: string } {
   const taskMap: { [taskId: string]: string } = {};
 
-  // Matches:
+  // Matches comments only first:
   // # 1, # 25, # 1., # 25.
   // # 1.1, # 1.2, ..., # 1.13, ..., # 1.25 (when students write 1.X as in lab 1)
   // # 2.1, # 2.2, ..., # 2.25
   // # Задача 1, # Задание 1.13, # Task 12, # № 13
   // # 12 Найдите количество всех счастливых комбинаций
-  // print("1.1 ..."), print("13 ..."), etc.
-  const taskMarkerRegex = /(?:^|\n)[ \t]*(?:#+|print\s*\(\s*["'])[ \t]*(?:задача|задание|task|завдання|№|ex)?\.?[ \t]*(?:(?:[12]|лаб(?:ораторная)?\s*[12]?)\s*[\.\-_])?[ \t]*(2[0-5]|1\d|[1-9])(?:\s*[\.\):\-–—]|\s+|$)/gi;
+  const commentMarkerRegex = /(?:^|\n)[ \t]*#+[ \t]*(?:задача|задание|task|завдання|№|ex)?\.?[ \t]*(?:(?:[12]|лаб(?:ораторная)?\s*[12]?)\s*[\.\-_])?[ \t]*(2[0-5]|1\d|[1-9])(?:\s*[\.\):\-–—]|\s+|$)/gi;
 
   const rawMatches: { taskId: string; index: number }[] = [];
   let m: RegExpExecArray | null;
 
-  while ((m = taskMarkerRegex.exec(code)) !== null) {
+  while ((m = commentMarkerRegex.exec(code)) !== null) {
     rawMatches.push({
       taskId: m[1], // "1" ... "25"
       index: m.index,
     });
   }
 
-  // Deduplicate consecutive markers for the same task
-  // (e.g. when student writes:
-  // # 12
-  // # 12 Найдите количество всех счастливых комбинаций)
+  // Only if NO comment markers exist at all in the file, look for print(...) headers
+  if (rawMatches.length === 0) {
+    const printMarkerRegex = /(?:^|\n)[ \t]*print\s*\(\s*["'][ \t]*(?:задача|задание|task|завдання|№|ex)?\.?[ \t]*(?:(?:[12]|лаб(?:ораторная)?\s*[12]?)\s*[\.\-_])?[ \t]*(2[0-5]|1\d|[1-9])(?:\s*[\.\):\-–—]|\s+|$)/gi;
+    while ((m = printMarkerRegex.exec(code)) !== null) {
+      rawMatches.push({
+        taskId: m[1],
+        index: m.index,
+      });
+    }
+  }
+
+  // Once a task ID is seen, do not register it again!
+  // (e.g. if task 1 is already found, a later print('1 - west ...') in task 23 or 24 is ignored)
   const matches: { taskId: string; index: number }[] = [];
+  const seenTaskIds = new Set<string>();
+
   for (const item of rawMatches) {
-    if (matches.length > 0 && matches[matches.length - 1].taskId === item.taskId) {
+    if (seenTaskIds.has(item.taskId)) {
       continue;
     }
+    seenTaskIds.add(item.taskId);
     matches.push(item);
   }
 
