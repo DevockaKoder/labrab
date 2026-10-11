@@ -90,7 +90,7 @@ export interface GradeScale3Details {
 
 export interface StudentSubmission {
   id: string;
-  labId?: 'lab1' | 'lab2';
+  labId?: 'lab1' | 'lab2' | 'lab3';
   studentName: string;
   groupName?: string;
   fileName: string;

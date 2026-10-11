@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StudentSubmission, TaskCheckResult } from '../types';
 import { LAB1_TASKS } from '../data/lab1Tasks';
 import { LAB2_TASKS } from '../data/lab2Tasks';
+import { LAB3_TASKS } from '../data/lab3Tasks';
 import { runPythonCode } from '../utils/pythonRunner';
 import { analyzeCodeWithGemini } from '../utils/aiDetector';
 import {
@@ -75,8 +76,13 @@ export function parseInteractiveInputs(inputStr: string): string[] {
 
 // Generates concise feedback for the student, including ONLY erroneous or not found tasks (excluding sample tasks)
 export function generateStudentFeedback(currentStudent: StudentSubmission): string {
-  const labNum = currentStudent.labId === 'lab2' ? 2 : 1;
-  const labTasks = currentStudent.labId === 'lab2' ? LAB2_TASKS : LAB1_TASKS;
+  const labNum = currentStudent.labId === 'lab3' ? 3 : currentStudent.labId === 'lab2' ? 2 : 1;
+  const labTasks =
+    currentStudent.labId === 'lab3'
+      ? LAB3_TASKS
+      : currentStudent.labId === 'lab2'
+      ? LAB2_TASKS
+      : LAB1_TASKS;
 
   let report = `Результаты проверки лабораторной работы №${labNum}:\n`;
   report += `Студент: ${currentStudent.studentName} (${currentStudent.groupName || 'Группа не указана'})\n`;
@@ -100,7 +106,7 @@ export function generateStudentFeedback(currentStudent: StudentSubmission): stri
     }
   }
 
-  // Filter out sample tasks from методичка (in Lab 1: 1.1, 2.1, 3.1, 3.2, 4.1; in Lab 2: none are samples)
+  // Filter out sample tasks from методичка (in Lab 1: 1.1, 2.1, 3.1, 3.2, 4.1; in Lab 2 and 3: none are samples)
   const gradedTasks = labTasks.filter((t) => !t.isSample);
 
   // Keep ONLY problem tasks (erroneous or not found)
@@ -110,7 +116,12 @@ export function generateStudentFeedback(currentStudent: StudentSubmission): stri
   });
 
   if (problemTasks.length === 0) {
-    const countDesc = currentStudent.labId === 'lab2' ? 'все 25 заданий' : 'все зачётные задания';
+    const countDesc =
+      currentStudent.labId === 'lab3'
+        ? 'все 20 заданий'
+        : currentStudent.labId === 'lab2'
+        ? 'все 25 заданий'
+        : 'все зачётные задания';
     report += `\nЗамечания по задачам:\nОшибочных или нерешённых задач нет (${countDesc} выполнены верно).\n`;
   } else {
     report += `\nЗамечания и нерешённые задания (${problemTasks.length}):\n`;
@@ -200,7 +211,12 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
   }
 
   // Filter tasks
-  const currentTasks = currentStudent.labId === 'lab2' ? LAB2_TASKS : LAB1_TASKS;
+  const currentTasks =
+    currentStudent.labId === 'lab3'
+      ? LAB3_TASKS
+      : currentStudent.labId === 'lab2'
+      ? LAB2_TASKS
+      : LAB1_TASKS;
   const tasksToDisplay = currentTasks.filter((task) => {
     const res = currentStudent.results[task.id];
     if (filterStatus === 'all') return true;
@@ -812,7 +828,9 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
             </div>
           </div>
           <p className="text-[11px] text-slate-500 mt-2.5 text-center">
-            {currentStudent.labId === 'lab2'
+            {currentStudent.labId === 'lab3'
+              ? 'Лабораторная работа №3: оцениваются 20 основных заданий (For, While, однопроходные алгоритмы, вложенные циклы).'
+              : currentStudent.labId === 'lab2'
               ? 'Лабораторная работа №2: оцениваются все 25 заданий (дополнительные задания не требуются).'
               : 'Задачи 1.1, 2.1, 3.1, 3.2, 4.1 являются примерами из методички и исключены из общей оценки (в зачёт входят 18 задач).'}
           </p>

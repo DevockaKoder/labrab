@@ -1,11 +1,11 @@
 import React from 'react';
-import { PlayCircle, ShieldAlert, FileSpreadsheet, BookOpen, Upload, CheckCircle2, Loader2, Layers } from 'lucide-react';
+import { PlayCircle, ShieldAlert, FileSpreadsheet, BookOpen, Upload, CheckCircle2, Loader2, Layers, FileCode2 } from 'lucide-react';
 
 interface HeaderProps {
-  activeTab: 'grading' | 'similarity' | 'summary' | 'tasks';
-  setActiveTab: (tab: 'grading' | 'similarity' | 'summary' | 'tasks') => void;
-  activeLab: 'lab1' | 'lab2';
-  onSelectLab: (lab: 'lab1' | 'lab2') => void;
+  activeTab: 'grading' | 'similarity' | 'summary' | 'tasks' | 'template';
+  setActiveTab: (tab: 'grading' | 'similarity' | 'summary' | 'tasks' | 'template') => void;
+  activeLab: 'lab1' | 'lab2' | 'lab3';
+  onSelectLab: (lab: 'lab1' | 'lab2' | 'lab3') => void;
   submissionsCount: number;
   suspiciousCount: number;
   aiAlertCount?: number;
@@ -36,16 +36,24 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-semibold text-slate-900 tracking-tight">
-                  {activeLab === 'lab2'
+                  {activeLab === 'lab3'
+                    ? 'Проверка Лабораторной работы №3'
+                    : activeLab === 'lab2'
                     ? 'Проверка Лабораторной работы №2'
                     : 'Проверка Лабораторной работы №1'}
                 </h1>
                 <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-700 border border-indigo-200/60">
-                  {activeLab === 'lab2' ? '25 заданий (без доп.)' : 'IDLE / 23 задачи'}
+                  {activeLab === 'lab3'
+                    ? '20 основных задач'
+                    : activeLab === 'lab2'
+                    ? '25 заданий (без доп.)'
+                    : 'IDLE / 23 задачи'}
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                {activeLab === 'lab2'
+                {activeLab === 'lab3'
+                  ? 'Циклы For и While, однопроходные алгоритмы (без списков), вложенные циклы'
+                  : activeLab === 'lab2'
                   ? 'Числовые типы данных, целочисленная арифметика, время и оператор выбора'
                   : 'Автотестирование вывода, AST-проверки ограничений и антиплагиат'}
               </p>
@@ -79,6 +87,18 @@ export const Header: React.FC<HeaderProps> = ({
                 title="Лабораторная работа №2 (25 заданий, без доп.)"
               >
                 Лаб №2
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectLab('lab3')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  activeLab === 'lab3'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Лабораторная работа №3 (20 основных задач: циклы for, while, однопроходные, вложенные)"
+              >
+                Лаб №3
               </button>
             </div>
 
@@ -194,7 +214,23 @@ export const Header: React.FC<HeaderProps> = ({
             <BookOpen className="w-4 h-4" />
             <span>Каталог заданий</span>
             <span className="ml-1 px-1.5 py-0.2 rounded-full text-xs bg-slate-100 text-slate-600">
-              {activeLab === 'lab2' ? '25' : '23'}
+              {activeLab === 'lab3' ? '20' : activeLab === 'lab2' ? '25' : '23'}
+            </span>
+          </button>
+
+          <button
+            id="tab-template"
+            onClick={() => setActiveTab('template')}
+            className={`flex items-center gap-2 py-2.5 px-3 border-b-2 text-xs sm:text-sm font-medium transition-all whitespace-nowrap ${
+              activeTab === 'template'
+                ? 'border-indigo-600 text-indigo-600 font-semibold'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+            }`}
+          >
+            <FileCode2 className="w-4 h-4 text-emerald-600" />
+            <span>Шаблон для курса</span>
+            <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              .py файл
             </span>
           </button>
         </nav>

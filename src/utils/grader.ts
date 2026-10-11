@@ -1,5 +1,6 @@
 import { LAB1_TASKS } from '../data/lab1Tasks';
 import { LAB2_TASKS } from '../data/lab2Tasks';
+import { LAB3_TASKS } from '../data/lab3Tasks';
 import { StudentSubmission, TaskCheckResult, LabTask } from '../types';
 import { splitCodeIntoTasks, extractStudentHeader, detectLabType } from './codeParser';
 import { runPythonCode } from './pythonRunner';
@@ -10,10 +11,10 @@ export async function gradeStudentCode(
   rawCode: string,
   fileName: string,
   onProgress?: (taskIndex: number, totalTasks: number, taskName: string) => void,
-  requestedLab?: 'lab1' | 'lab2'
+  requestedLab?: 'lab1' | 'lab2' | 'lab3'
 ): Promise<StudentSubmission> {
-  const labId: 'lab1' | 'lab2' = requestedLab || detectLabType(rawCode, fileName);
-  const taskList: LabTask[] = labId === 'lab2' ? LAB2_TASKS : LAB1_TASKS;
+  const labId: 'lab1' | 'lab2' | 'lab3' = requestedLab || detectLabType(rawCode, fileName);
+  const taskList: LabTask[] = labId === 'lab3' ? LAB3_TASKS : labId === 'lab2' ? LAB2_TASKS : LAB1_TASKS;
 
   const { studentName, groupName } = extractStudentHeader(rawCode, fileName);
   const tasksMap = splitCodeIntoTasks(rawCode, fileName, labId);
@@ -137,11 +138,10 @@ export async function gradeStudentCode(
       }
 
       if (pyRes.error) {
-        // If the test case allows timeout when output is already valid (e.g. task 13 factorions 145 / 40585)
+        // If the test case allows timeout when output is already valid (e.g. Lab 2 task 13 factorions 145 / 40585)
         const isPermittedTimeout =
           passed &&
-          pyRes.isLoopTimeout &&
-          (tc.allowTimeoutIfOutputValid || task.id === '13' || task.id === '2.13' || task.id === '1.13');
+          (pyRes.isLoopTimeout || ((labId === 'lab2' || labId === 'lab1') && (task.id === '13' || task.id === '2.13' || task.id === '1.13')) || !!tc.allowTimeoutIfOutputValid);
 
         if (isPermittedTimeout) {
           passed = true;

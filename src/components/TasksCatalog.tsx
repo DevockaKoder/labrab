@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { LAB1_TASKS } from '../data/lab1Tasks';
 import { LAB2_TASKS } from '../data/lab2Tasks';
-import { BookOpen, Copy, Check, Terminal, Code2 } from 'lucide-react';
+import { LAB3_TASKS } from '../data/lab3Tasks';
+import { BookOpen, Copy, Check, Terminal, Code2, Download, FileCode2 } from 'lucide-react';
+import { downloadUniversalTemplate } from '../data/universalTemplate';
 
 interface TasksCatalogProps {
-  initialLab?: 'lab1' | 'lab2';
+  initialLab?: 'lab1' | 'lab2' | 'lab3';
 }
 
 export const TasksCatalog: React.FC<TasksCatalogProps> = ({ initialLab = 'lab1' }) => {
-  const [activeLab, setActiveLab] = useState<'lab1' | 'lab2'>(initialLab);
+  const [activeLab, setActiveLab] = useState<'lab1' | 'lab2' | 'lab3'>(initialLab);
   const [selectedSection, setSelectedSection] = useState<string>('all');
   const [copiedTask, setCopiedTask] = useState<string | null>(null);
 
@@ -22,14 +24,22 @@ export const TasksCatalog: React.FC<TasksCatalogProps> = ({ initialLab = 'lab1' 
 
   const lab2Sections = [
     'all',
-    'I. Целочисленная арифметика и разряды',
-    'II. Время и календарь',
-    'III. Условный оператор и координатная плоскость',
-    'IV. Оператор выбора (Case / Ветвления)',
+    'I. Числа, целые и вещественные',
+    'II. Проверка условия (if-elif-else, логические выражения)',
   ];
 
-  const currentLabTasks = activeLab === 'lab2' ? LAB2_TASKS : LAB1_TASKS;
-  const currentSections = activeLab === 'lab2' ? lab2Sections : lab1Sections;
+  const lab3Sections = [
+    'all',
+    '1. Цикл с параметром: группа For',
+    '2. Цикл с условием: группа While',
+    '3. Однопроходные алгоритмы цикла while',
+    '4. Вложенные циклы while',
+  ];
+
+  const currentLabTasks =
+    activeLab === 'lab3' ? LAB3_TASKS : activeLab === 'lab2' ? LAB2_TASKS : LAB1_TASKS;
+  const currentSections =
+    activeLab === 'lab3' ? lab3Sections : activeLab === 'lab2' ? lab2Sections : lab1Sections;
 
   const filteredTasks = currentLabTasks.filter(
     (t) => selectedSection === 'all' || t.section === selectedSection
@@ -51,13 +61,17 @@ export const TasksCatalog: React.FC<TasksCatalogProps> = ({ initialLab = 'lab1' 
             <div className="flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-indigo-600" />
               <h2 className="text-lg font-bold text-slate-900">
-                {activeLab === 'lab2'
+                {activeLab === 'lab3'
+                  ? 'База заданий: Лабораторная работа №3'
+                  : activeLab === 'lab2'
                   ? 'База заданий: Лабораторная работа №2'
                   : 'База заданий: Лабораторная работа №1'}
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              {activeLab === 'lab2'
+              {activeLab === 'lab3'
+                ? '«Циклы for и while, однопроходные алгоритмы без списков, вложенные циклы» • 20 основных заданий'
+                : activeLab === 'lab2'
                 ? '«Числовые типы данных, целочисленная арифметика и оператор выбора» • 25 обязательных заданий'
                 : '«Введение в Python. Интегрированная среда разработки IDLE» • 23 задания с эталонными решениями'}
             </p>
@@ -70,26 +84,52 @@ export const TasksCatalog: React.FC<TasksCatalogProps> = ({ initialLab = 'lab1' 
                 setActiveLab('lab1');
                 setSelectedSection('all');
               }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeLab === 'lab1'
                   ? 'bg-white text-indigo-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Лабораторная №1 (23 зад.)
+              Лаб №1 (23)
             </button>
             <button
               onClick={() => {
                 setActiveLab('lab2');
                 setSelectedSection('all');
               }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 activeLab === 'lab2'
                   ? 'bg-white text-indigo-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Лабораторная №2 (25 зад.)
+              Лаб №2 (25)
+            </button>
+            <button
+              onClick={() => {
+                setActiveLab('lab3');
+                setSelectedSection('all');
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeLab === 'lab3'
+                  ? 'bg-white text-indigo-600 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Лаб №3 (20)
+            </button>
+          </div>
+
+          {/* Quick template button */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => downloadUniversalTemplate('Шаблон_Лабораторная_Работа.py')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-2xs"
+              title="Скачать универсальный .py шаблон для отправки студентам"
+            >
+              <FileCode2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Скачать шаблон для студентов (.py)</span>
             </button>
           </div>
         </div>

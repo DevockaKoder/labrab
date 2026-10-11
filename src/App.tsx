@@ -5,6 +5,7 @@ import { StudentGradingView } from './components/StudentGradingView';
 import { SimilarityMatrixView } from './components/SimilarityMatrixView';
 import { SummaryTable } from './components/SummaryTable';
 import { TasksCatalog } from './components/TasksCatalog';
+import { TemplateView } from './components/TemplateView';
 import { UploadModal } from './components/UploadModal';
 import { gradeStudentCode } from './utils/grader';
 import { detectLabType } from './utils/codeParser';
@@ -12,11 +13,12 @@ import { compareAllSubmissions } from './utils/similarityEngine';
 import { getPyodide } from './utils/pythonRunner';
 import { SAMPLE_SUBMISSIONS } from './data/sampleSubmissions';
 import { SAMPLE_SUBMISSIONS_LAB2 } from './data/sampleSubmissionsLab2';
+import { SAMPLE_SUBMISSIONS_LAB3 } from './data/sampleSubmissionsLab3';
 import { Upload, Sparkles, BookOpen, Layers } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'grading' | 'similarity' | 'summary' | 'tasks'>('grading');
-  const [activeLab, setActiveLab] = useState<'lab1' | 'lab2'>('lab1');
+  const [activeTab, setActiveTab] = useState<'grading' | 'similarity' | 'summary' | 'tasks' | 'template'>('grading');
+  const [activeLab, setActiveLab] = useState<'lab1' | 'lab2' | 'lab3'>('lab1');
   const [submissions, setSubmissions] = useState<StudentSubmission[]>([]);
   const [similarityPairs, setSimilarityPairs] = useState<SimilarityPair[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
@@ -62,17 +64,18 @@ export default function App() {
   // Handler to process uploaded files
   const handleProcessFiles = async (
     files: { name: string; content: string }[],
-    targetLab?: 'lab1' | 'lab2'
+    targetLab?: 'lab1' | 'lab2' | 'lab3'
   ) => {
     setIsProcessing(true);
     const newSubmissions: StudentSubmission[] = [];
-    let detectedOrChosenLab: 'lab1' | 'lab2' = targetLab || activeLab;
+    let detectedOrChosenLab: 'lab1' | 'lab2' | 'lab3' = targetLab || activeLab;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const specificLab = targetLab || detectLabType(file.content, file.name, activeLab);
       detectedOrChosenLab = specificLab;
-      setProgressText(`Проверка файла ${i + 1} из ${files.length}: ${file.name} (Лаб №${specificLab === 'lab2' ? 2 : 1})`);
+      const labNum = specificLab === 'lab3' ? 3 : specificLab === 'lab2' ? 2 : 1;
+      setProgressText(`Проверка файла ${i + 1} из ${files.length}: ${file.name} (Лаб №${labNum})`);
 
       try {
         const graded = await gradeStudentCode(
@@ -106,8 +109,8 @@ export default function App() {
     setProgressText('');
   };
 
-  const handleQuickLoadDemo = async (lab: 'lab1' | 'lab2') => {
-    const samples = lab === 'lab2' ? SAMPLE_SUBMISSIONS_LAB2 : SAMPLE_SUBMISSIONS;
+  const handleQuickLoadDemo = async (lab: 'lab1' | 'lab2' | 'lab3') => {
+    const samples = lab === 'lab3' ? SAMPLE_SUBMISSIONS_LAB3 : lab === 'lab2' ? SAMPLE_SUBMISSIONS_LAB2 : SAMPLE_SUBMISSIONS;
     const files = samples.map((s) => ({
       name: s.fileName,
       content: s.code,
@@ -194,12 +197,16 @@ export default function App() {
                 <Layers className="w-8 h-8" />
               </div>
               <h3 className="text-lg font-bold text-slate-900">
-                {activeLab === 'lab2'
+                {activeLab === 'lab3'
+                  ? 'Работы по Лабораторной работе №3 ещё не загружены'
+                  : activeLab === 'lab2'
                   ? 'Работы по Лабораторной работе №2 ещё не загружены'
                   : 'Работы по Лабораторной работе №1 ещё не загружены'}
               </h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto mt-1.5 mb-6 leading-relaxed">
-                {activeLab === 'lab2'
+                {activeLab === 'lab3'
+                  ? 'В этой лабораторной проверяются 20 основных заданий (циклы For и While, однопроходные алгоритмы без списков, вложенные циклы). Загрузите работы студентов или мгновенно проверьте демо-примеры.'
+                  : activeLab === 'lab2'
                   ? 'В этой лабораторной проверяются 25 обязательных заданий (числовые типы данных, деление // и %, время, робот, локатор). Загрузите работы студентов или мгновенно проверьте демо-примеры.'
                   : 'В этой лабораторной проверяются 23 задания (18 зачётных + 5 образцов). Загрузите работы студентов или откройте демо-примеры.'}
               </p>
@@ -218,7 +225,15 @@ export default function App() {
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all"
                 >
                   <Sparkles className="w-4 h-4 text-indigo-600" />
-                  <span>Загрузить демо-работы ({activeLab === 'lab2' ? 'Лаб №2: 25 зад.' : 'Лаб №1'})</span>
+                  <span>
+                    Загрузить демо-работы (
+                    {activeLab === 'lab3'
+                      ? 'Лаб №3: 20 зад.'
+                      : activeLab === 'lab2'
+                      ? 'Лаб №2: 25 зад.'
+                      : 'Лаб №1'}
+                    )
+                  </span>
                 </button>
               </div>
             </div>
@@ -249,6 +264,8 @@ export default function App() {
         )}
 
         {activeTab === 'tasks' && <TasksCatalog initialLab={activeLab} />}
+
+        {activeTab === 'template' && <TemplateView />}
       </main>
 
       {/* Upload Modal */}

@@ -91,8 +91,9 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
       csv += `"${s.studentName}","${s.groupName}","${s.fileName}",${s.gradeScale3},"${gradeTitle}",${s.totalScore},${s.maxPossibleScore},${s.gradePercentage}%,${simVal},${simWith},${aiProb},"${aiVerdict}"\n`;
     });
 
+    const isLab3 = submissions.some((s) => s.labId === 'lab3');
     const isLab2 = submissions.some((s) => s.labId === 'lab2');
-    const labNumber = isLab2 ? 2 : 1;
+    const labNumber = isLab3 ? 3 : isLab2 ? 2 : 1;
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -104,8 +105,10 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
   };
 
   const handleCopySummary = () => {
+    const isLab3 = submissions.some((s) => s.labId === 'lab3');
     const isLab2 = submissions.some((s) => s.labId === 'lab2');
-    let text = `СВОДНАЯ ВЕДОМОСТЬ: Лабораторная работа №${isLab2 ? 2 : 1} (Python)\n`;
+    const labNumber = isLab3 ? 3 : isLab2 ? 2 : 1;
+    let text = `СВОДНАЯ ВЕДОМОСТЬ: Лабораторная работа №${labNumber} (Python)\n`;
     text += `Шкала: 3 - отлично (>=90%), 2 - есть ошибки (70-89%), 1 - много ошибок/ИИ (50-69%), 0 - не зачтено (<50%)\n`;
     text += `Дата формирования: ${new Date().toLocaleDateString()}\n\n`;
     text += `№ | ФИО Студента | Группа | Оценка (0-3) | Баллы | % | Плагиат | ИИ-контроль\n`;
@@ -203,9 +206,12 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               {(() => {
+                const isLab3 = submissions.some((s) => s.labId === 'lab3');
                 const isLab2 = submissions.some((s) => s.labId === 'lab2');
-                const max = submissions[0]?.maxPossibleScore || (isLab2 ? 25 : 18);
-                const note = isLab2
+                const max = submissions[0]?.maxPossibleScore || (isLab3 ? 20 : isLab2 ? 25 : 18);
+                const note = isLab3
+                  ? '(все 20 основных заданий зачётные)'
+                  : isLab2
                   ? '(все 25 заданий зачётные, доп. не требуются)'
                   : '(задачи-примеры 1.1, 2.1, 3.1, 3.2, 4.1 исключены)';
                 return `Средний зачётный балл: ${Math.round(avgScore * 10) / 10} / ${max} ${note}`;

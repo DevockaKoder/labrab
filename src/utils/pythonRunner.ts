@@ -326,8 +326,8 @@ json.dumps({
 `;
 
   try {
-    // JavaScript timeout watchdog (2.8 seconds) as second line of defense
-    const JS_TIMEOUT_MS = 2800;
+    // JavaScript timeout watchdog (6.5 seconds) as second line of defense
+    const JS_TIMEOUT_MS = 6500;
     const pyPromise = py.runPythonAsync(runnerScript);
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
