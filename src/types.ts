@@ -3,6 +3,7 @@ export interface TestCase {
   description: string;
   inputs: (string | number)[];
   expectedValueDescription: string;
+  allowTimeoutIfOutputValid?: boolean;
   validator?: (stdout: string, inputs: (string | number)[]) => {
     passed: boolean;
     details: string;

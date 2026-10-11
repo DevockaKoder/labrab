@@ -570,18 +570,23 @@ export const LAB2_TASKS: LabTask[] = [
     testCases: [
       {
         id: '2_13_t1',
-        description: 'Поиск чисел равных сумме факториалов цифр (145)',
+        description: 'Поиск чисел равных сумме факториалов цифр (145, 40585)',
         inputs: [],
         expectedValueDescription: '145 (а также 1, 2, 40585)',
+        allowTimeoutIfOutputValid: true,
         validator: (stdout) => {
           const nums = extractNumbers(stdout);
-          const passed = nums.includes(145) || stdout.includes('145');
+          const has145 = nums.includes(145) || stdout.includes('145');
+          const has40585 = nums.includes(40585) || stdout.includes('40585');
+          const passed = has145 || has40585;
           return {
             passed,
             details: passed
-              ? 'Число 145 (факторион) успешно найдено в выводе'
+              ? (has40585
+                  ? 'Все факторионы успешно найдены (1, 2, 145, 40585)'
+                  : 'Число 145 (факторион) успешно найдено в выводе')
               : 'В выводе не найдено число 145',
-            expected: '145',
+            expected: '145 (или 40585)',
             actual: nums.join(', ') || stdout.trim(),
           };
         },

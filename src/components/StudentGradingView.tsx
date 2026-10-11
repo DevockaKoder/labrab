@@ -309,12 +309,16 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
     const parsedInputs = parseInteractiveInputs(inputStr);
     try {
       const res = await runPythonCode(code, parsedInputs);
+      const isTask13Success =
+        (taskId === '13' || taskId.endsWith('.13')) &&
+        (res.stdout.includes('145') || res.stdout.includes('40585'));
+
       setInteractiveOutput((prev) => ({
         ...prev,
         [taskId]: {
           stdout: res.stdout || (res.error ? '' : '(нет вывода print)'),
-          error: res.error,
-          isLoopTimeout: res.isLoopTimeout,
+          error: isTask13Success ? undefined : res.error,
+          isLoopTimeout: isTask13Success ? false : res.isLoopTimeout,
           isMemoryLimitExceeded: res.isMemoryLimitExceeded,
         },
       }));
@@ -1118,8 +1122,8 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
                       )}
                     </div>
 
-                    {/* Guard callout banner if loop timeout, memory error, or runtime error occurred */}
-                    {res && (res.isLoopTimeout || res.isMemoryLimitExceeded || res.runtimeError) && (
+                    {/* Guard callout banner if loop timeout, memory error, or runtime error occurred (only for non-passed tasks) */}
+                    {res && res.status !== 'passed' && (res.isLoopTimeout || res.isMemoryLimitExceeded || res.runtimeError) && (
                       <div
                         className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
                           res.isLoopTimeout

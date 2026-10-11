@@ -137,7 +137,19 @@ export async function gradeStudentCode(
       }
 
       if (pyRes.error) {
-        passed = false;
+        // If the test case allows timeout when output is already valid (e.g. task 13 factorions 145 / 40585)
+        const isPermittedTimeout =
+          passed &&
+          pyRes.isLoopTimeout &&
+          (tc.allowTimeoutIfOutputValid || task.id === '13' || task.id === '2.13' || task.id === '1.13');
+
+        if (isPermittedTimeout) {
+          passed = true;
+          taskIsLoopTimeout = false;
+          runtimeError = undefined;
+        } else {
+          passed = false;
+        }
       }
 
       if (!passed) {
@@ -151,12 +163,12 @@ export async function gradeStudentCode(
         passed,
         expected,
         actual,
-        errorMessage: pyRes.error || (details && !passed ? details : undefined),
+        errorMessage: passed ? undefined : (pyRes.error || (details && !passed ? details : undefined)),
       });
 
       // If this test hit an infinite loop or memory limit, short-circuit remaining tests for this task
       // to avoid running redundant hangs or wasting browser RAM
-      if (pyRes.isLoopTimeout || pyRes.isMemoryLimitExceeded) {
+      if ((pyRes.isLoopTimeout || pyRes.isMemoryLimitExceeded) && !passed) {
         for (let nextIdx = tIdx + 1; nextIdx < task.testCases.length; nextIdx++) {
           const nextTc = task.testCases[nextIdx];
           testResults.push({
