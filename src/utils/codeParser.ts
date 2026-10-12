@@ -29,7 +29,11 @@ export function extractStudentHeader(code: string, fileName: string): { studentN
 
   // Fallback to fileName if not detected in code
   if (!studentName) {
-    const baseName = fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+    const baseName = fileName
+      .replace(/\.[^/.]+$/, '')
+      .replace(/(?:лабораторная|лаб|лаба|lr|lab)\s*\d*/gi, '')
+      .replace(/[-_]/g, ' ')
+      .trim();
     studentName = baseName || 'Студент';
   }
 
@@ -42,24 +46,24 @@ export function detectLabType(
   fallbackLab: 'lab1' | 'lab2' | 'lab3' = 'lab1'
 ): 'lab1' | 'lab2' | 'lab3' {
   // 1. Explicit filename cues
-  if (/lab_?3|лабораторная_?3|практика_?3|лаб_?3/i.test(fileName)) return 'lab3';
-  if (/lab_?2|лабораторная_?2|практика_?2|лаб_?2/i.test(fileName)) return 'lab2';
-  if (/lab_?1|лабораторная_?1|практика_?1|лаб_?1/i.test(fileName)) return 'lab1';
+  if (/lab_?3|лабораторная_?3|практика_?3|лаб_?3|лр_?3/i.test(fileName)) return 'lab3';
+  if (/lab_?2|лабораторная_?2|практика_?2|лаб_?2|лр_?2/i.test(fileName)) return 'lab2';
+  if (/lab_?1|лабораторная_?1|практика_?1|лаб_?1|лр_?1/i.test(fileName)) return 'lab1';
 
   // 2. Explicit header comments in code
-  if (/(?:лабораторная|лаб\.?|практическая|практика)\s*(?:работа\s*)?№?\s*3\b/i.test(code)) {
+  if (/(?:лабораторная|лаб\.?|практическая|практика|лр)\s*(?:работа\s*)?№?\s*3\b/i.test(code)) {
     return 'lab3';
   }
-  if (/(?:лабораторная|лаб\.?|практическая|практика)\s*(?:работа\s*)?№?\s*2\b/i.test(code)) {
+  if (/(?:лабораторная|лаб\.?|практическая|практика|лр)\s*(?:работа\s*)?№?\s*2\b/i.test(code)) {
     return 'lab2';
   }
-  if (/(?:лабораторная|лаб\.?|практическая|практика)\s*(?:работа\s*)?№?\s*1\b/i.test(code)) {
+  if (/(?:лабораторная|лаб\.?|практическая|практика|лр)\s*(?:работа\s*)?№?\s*1\b/i.test(code)) {
     return 'lab1';
   }
 
   // 3. Lab 3 specific keywords
   if (
-    /(?:двойной\s+факториал|n!!|гармоническ|фибоначчи|однопроходн|округленные\s+значения|признак\s+его\s+завершения|вложенные\s+циклы)/i.test(
+    /(?:двойной\s+факториал|n!!|гармоническ|фибоначчи|однопроходн|округленные\s+значения|дробные\s+части|признак\s+его\s+завершения|вложенные\s+циклы|последовательность\s+(?:целых\s+чисел\s+)?a[kк]|сумма\s+первых\s+n\s+нечетных|квадрат\s+данного\s+числа.*n2\s*=|1\.1\s*–\s*1\.2\s*\+\s*1\.3|набор\s+из\s+n\s+(?:вещественных|положительных|целых)\s+чисел|последними\s+двумя\s+нулями|k\s+наборов\s+ненулевых|элементы\s+набора\s+возрастают)/i.test(
       code
     )
   ) {
@@ -82,8 +86,9 @@ export function detectLabType(
   }
 
   // 5. Lab 1 specific markers:
-  // Blocks 3.x and 4.x (e.g. # 3.1, # 4.1)
+  // Blocks 3.x and 4.x (e.g. # 3.1, # 4.1) only if not already detected as Lab 3
   if (/(?:^|\n)\s*#+\s*(?:задача|задание|task|№)?\s*[34]\.[1-7]\b/i.test(code)) {
+    if (fallbackLab === 'lab3') return 'lab3';
     return 'lab1';
   }
 
@@ -115,13 +120,6 @@ export function splitCodeIntoTasks(
 
 function splitCodeForLab1(code: string, fileName: string): { [taskId: string]: string } {
   const taskMap: { [taskId: string]: string } = {};
-
-  // Check if filename itself denotes a specific task (e.g., task_1_2.py, 2.3.py)
-  const fileTaskMatch = fileName.match(/(?:task|задача|задание)?[_\s]*([1-4]\.[1-7])/i);
-  if (fileTaskMatch && !code.includes('# 1.') && !code.includes('# 2.') && !code.includes('# 3.') && !code.includes('# 4.')) {
-    taskMap[fileTaskMatch[1]] = code;
-    return taskMap;
-  }
 
   // Split lines and scan for task markers like # 1.1, # Задача 1.2
   const taskMarkerRegex = /(?:^|\n)\s*#+\s*(?:задача|задание|task)?\s*([1-4]\.[1-7])\b/gi;
@@ -157,6 +155,17 @@ function splitCodeForLab1(code: string, fileName: string): { [taskId: string]: s
   }
 
   if (matches.length === 0) {
+    const fileBase = fileName.replace(/\.[^/.]+$/, '').trim();
+    const isLabName = /(?:lab|лаб|лабораторн|практик|лр|работа)/i.test(fileBase);
+    if (!isLabName) {
+      const fileTaskMatch =
+        fileBase.match(/^(?:task|задача|задание)[_\s-]*([1-4]\.[1-7])$/i) ||
+        fileBase.match(/^([1-4]\.[1-7])$/i);
+      if (fileTaskMatch) {
+        taskMap[fileTaskMatch[1]] = code;
+        return taskMap;
+      }
+    }
     taskMap['1.1'] = code;
     return taskMap;
   }
@@ -349,18 +358,6 @@ function splitNumberedLab(
 ): { [taskId: string]: string } {
   const taskMap: { [taskId: string]: string } = {};
 
-  // Check if filename itself denotes a specific task (e.g., task_12.py)
-  const fileTaskMatch = fileName.match(/(?:task|задача|задание)?[_\s]*(2[0-5]|1\d|[1-9])(?:\.py)?$/i);
-  if (fileTaskMatch) {
-    const num = parseInt(fileTaskMatch[1], 10);
-    if (num <= maxTaskNum) {
-      const singleId = String(num);
-      taskMap[singleId] = code;
-      taskMap[`${labPrefix}.${singleId}`] = code;
-      return taskMap;
-    }
-  }
-
   const rawMatches: { taskId: string; index: number; fullLine: string }[] = [];
   const lines = code.split('\n');
   let currentGroup = 1;
@@ -389,8 +386,25 @@ function splitNumberedLab(
     charOffset += line.length + 1; // +1 for the newline
   }
 
-  // Fallback if no task markers detected: check if whole file is task 1
+  // Fallback if no task markers detected: check if filename itself denotes a specific single task
   if (rawMatches.length === 0) {
+    const fileBase = fileName.replace(/\.[^/.]+$/, '').trim();
+    const isLabName = /(?:lab|лаб|лабораторн|практик|лр|работа)/i.test(fileBase);
+    if (!isLabName) {
+      const fileTaskMatch =
+        fileBase.match(/^(?:task|задача|задание|номер|ex)[_\s-]*([1-9]|1\d|2[0-5])$/i) ||
+        fileBase.match(/^([1-9]|1\d|2[0-5])$/i);
+      if (fileTaskMatch) {
+        const num = parseInt(fileTaskMatch[1], 10);
+        if (num <= maxTaskNum) {
+          const singleId = String(num);
+          taskMap[singleId] = code;
+          taskMap[`${labPrefix}.${singleId}`] = code;
+          return taskMap;
+        }
+      }
+    }
+
     taskMap['1'] = code;
     taskMap[`${labPrefix}.1`] = code;
     return taskMap;
