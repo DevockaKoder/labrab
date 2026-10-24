@@ -2,6 +2,7 @@ import { StudentSubmission, LabTask } from '../types';
 import { LAB1_TASKS } from '../data/lab1Tasks';
 import { LAB2_TASKS } from '../data/lab2Tasks';
 import { LAB3_TASKS } from '../data/lab3Tasks';
+import { LAB4_TASKS } from '../data/lab4Tasks';
 
 /**
  * Cleanly formats a number without floating point artifacts like 15.999999999999996.
@@ -18,7 +19,8 @@ export function formatScore(num: number): string {
 /**
  * Returns the relevant tasks for the given lab ID.
  */
-export function getTasksForLab(labId?: 'lab1' | 'lab2' | 'lab3'): LabTask[] {
+export function getTasksForLab(labId?: 'lab1' | 'lab2' | 'lab3' | 'lab4'): LabTask[] {
+  if (labId === 'lab4') return LAB4_TASKS;
   if (labId === 'lab3') return LAB3_TASKS;
   if (labId === 'lab2') return LAB2_TASKS;
   return LAB1_TASKS;

@@ -14,11 +14,12 @@ import { getPyodide } from './utils/pythonRunner';
 import { SAMPLE_SUBMISSIONS } from './data/sampleSubmissions';
 import { SAMPLE_SUBMISSIONS_LAB2 } from './data/sampleSubmissionsLab2';
 import { SAMPLE_SUBMISSIONS_LAB3 } from './data/sampleSubmissionsLab3';
+import { SAMPLE_SUBMISSIONS_LAB4 } from './data/sampleSubmissionsLab4';
 import { Upload, Sparkles, BookOpen, Layers } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'grading' | 'similarity' | 'summary' | 'tasks' | 'template'>('grading');
-  const [activeLab, setActiveLab] = useState<'lab1' | 'lab2' | 'lab3'>('lab1');
+  const [activeLab, setActiveLab] = useState<'lab1' | 'lab2' | 'lab3' | 'lab4'>('lab1');
   const [submissions, setSubmissions] = useState<StudentSubmission[]>([]);
   const [similarityPairs, setSimilarityPairs] = useState<SimilarityPair[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
@@ -64,17 +65,17 @@ export default function App() {
   // Handler to process uploaded files
   const handleProcessFiles = async (
     files: { name: string; content: string }[],
-    targetLab?: 'lab1' | 'lab2' | 'lab3'
+    targetLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4'
   ) => {
     setIsProcessing(true);
     const newSubmissions: StudentSubmission[] = [];
-    let detectedOrChosenLab: 'lab1' | 'lab2' | 'lab3' = targetLab || activeLab;
+    let detectedOrChosenLab: 'lab1' | 'lab2' | 'lab3' | 'lab4' = targetLab || activeLab;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const specificLab = targetLab || detectLabType(file.content, file.name, activeLab);
       detectedOrChosenLab = specificLab;
-      const labNum = specificLab === 'lab3' ? 3 : specificLab === 'lab2' ? 2 : 1;
+      const labNum = specificLab === 'lab4' ? 4 : specificLab === 'lab3' ? 3 : specificLab === 'lab2' ? 2 : 1;
       setProgressText(`Проверка файла ${i + 1} из ${files.length}: ${file.name} (Лаб №${labNum})`);
 
       try {
@@ -109,8 +110,15 @@ export default function App() {
     setProgressText('');
   };
 
-  const handleQuickLoadDemo = async (lab: 'lab1' | 'lab2' | 'lab3') => {
-    const samples = lab === 'lab3' ? SAMPLE_SUBMISSIONS_LAB3 : lab === 'lab2' ? SAMPLE_SUBMISSIONS_LAB2 : SAMPLE_SUBMISSIONS;
+  const handleQuickLoadDemo = async (lab: 'lab1' | 'lab2' | 'lab3' | 'lab4') => {
+    const samples =
+      lab === 'lab4'
+        ? SAMPLE_SUBMISSIONS_LAB4
+        : lab === 'lab3'
+        ? SAMPLE_SUBMISSIONS_LAB3
+        : lab === 'lab2'
+        ? SAMPLE_SUBMISSIONS_LAB2
+        : SAMPLE_SUBMISSIONS;
     const files = samples.map((s) => ({
       name: s.fileName,
       content: s.code,
@@ -197,14 +205,18 @@ export default function App() {
                 <Layers className="w-8 h-8" />
               </div>
               <h3 className="text-lg font-bold text-slate-900">
-                {activeLab === 'lab3'
+                {activeLab === 'lab4'
+                  ? 'Работы по Лабораторной работе №4 ещё не загружены'
+                  : activeLab === 'lab3'
                   ? 'Работы по Лабораторной работе №3 ещё не загружены'
                   : activeLab === 'lab2'
                   ? 'Работы по Лабораторной работе №2 ещё не загружены'
                   : 'Работы по Лабораторной работе №1 ещё не загружены'}
               </h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto mt-1.5 mb-6 leading-relaxed">
-                {activeLab === 'lab3'
+                {activeLab === 'lab4'
+                  ? 'В этой лабораторной проверяются 25 основных заданий (базовые типы данных – строки: индексация, срезы, ord/chr, посимвольный анализ, без дополнительных). Загрузите работы студентов или мгновенно проверьте демо-примеры.'
+                  : activeLab === 'lab3'
                   ? 'В этой лабораторной проверяются 20 основных заданий (циклы For и While, однопроходные алгоритмы без списков, вложенные циклы). Загрузите работы студентов или мгновенно проверьте демо-примеры.'
                   : activeLab === 'lab2'
                   ? 'В этой лабораторной проверяются 25 обязательных заданий (числовые типы данных, деление // и %, время, робот, локатор). Загрузите работы студентов или мгновенно проверьте демо-примеры.'
@@ -227,7 +239,9 @@ export default function App() {
                   <Sparkles className="w-4 h-4 text-indigo-600" />
                   <span>
                     Загрузить демо-работы (
-                    {activeLab === 'lab3'
+                    {activeLab === 'lab4'
+                      ? 'Лаб №4: 25 зад.'
+                      : activeLab === 'lab3'
                       ? 'Лаб №3: 20 зад.'
                       : activeLab === 'lab2'
                       ? 'Лаб №2: 25 зад.'

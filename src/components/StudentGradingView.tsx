@@ -3,6 +3,7 @@ import { StudentSubmission, TaskCheckResult } from '../types';
 import { LAB1_TASKS } from '../data/lab1Tasks';
 import { LAB2_TASKS } from '../data/lab2Tasks';
 import { LAB3_TASKS } from '../data/lab3Tasks';
+import { LAB4_TASKS } from '../data/lab4Tasks';
 import { runPythonCode } from '../utils/pythonRunner';
 import { analyzeCodeWithGemini } from '../utils/aiDetector';
 import {
@@ -146,7 +147,9 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
 
   // Filter tasks
   const currentTasks =
-    currentStudent.labId === 'lab3'
+    currentStudent.labId === 'lab4'
+      ? LAB4_TASKS
+      : currentStudent.labId === 'lab3'
       ? LAB3_TASKS
       : currentStudent.labId === 'lab2'
       ? LAB2_TASKS
@@ -764,7 +767,9 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
             </div>
           </div>
           <p className="text-[11px] text-slate-500 mt-2.5 text-center">
-            {currentStudent.labId === 'lab3'
+            {currentStudent.labId === 'lab4'
+              ? 'Лабораторная работа №4: оцениваются 25 основных заданий (строки: срезы, индексация, ord/chr, без дополнительных).'
+              : currentStudent.labId === 'lab3'
               ? 'Лабораторная работа №3: оцениваются 20 основных заданий (For, While, однопроходные алгоритмы, вложенные циклы).'
               : currentStudent.labId === 'lab2'
               ? 'Лабораторная работа №2: оцениваются все 25 заданий (дополнительные задания не требуются).'

@@ -4,15 +4,16 @@ import { X, UploadCloud, FileCode, CheckCircle2, AlertCircle, FileArchive, Spark
 import { SAMPLE_SUBMISSIONS } from '../data/sampleSubmissions';
 import { SAMPLE_SUBMISSIONS_LAB2 } from '../data/sampleSubmissionsLab2';
 import { SAMPLE_SUBMISSIONS_LAB3 } from '../data/sampleSubmissionsLab3';
+import { SAMPLE_SUBMISSIONS_LAB4 } from '../data/sampleSubmissionsLab4';
 import { downloadUniversalTemplate } from '../data/universalTemplate';
 
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onProcessFiles: (files: { name: string; content: string }[], targetLab?: 'lab1' | 'lab2' | 'lab3') => Promise<void>;
+  onProcessFiles: (files: { name: string; content: string }[], targetLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4') => Promise<void>;
   isProcessing: boolean;
   progressText: string;
-  currentActiveLab: 'lab1' | 'lab2' | 'lab3';
+  currentActiveLab: 'lab1' | 'lab2' | 'lab3' | 'lab4';
 }
 
 export const UploadModal: React.FC<UploadModalProps> = ({
@@ -24,7 +25,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   currentActiveLab,
 }) => {
   const [activeMode, setActiveMode] = useState<'files' | 'paste'>('files');
-  const [targetLab, setTargetLab] = useState<'lab1' | 'lab2' | 'lab3' | 'auto'>('auto');
+  const [targetLab, setTargetLab] = useState<'lab1' | 'lab2' | 'lab3' | 'lab4' | 'auto'>('auto');
   const [dragOver, setDragOver] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<{ name: string; content: string }[]>([]);
   const [pasteName, setPasteName] = useState('');
@@ -82,9 +83,16 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     setSelectedFiles((prev) => [...prev, ...parsedFiles]);
   };
 
-  const handleLoadDemo = async (lab: 'lab1' | 'lab2' | 'lab3') => {
+  const handleLoadDemo = async (lab: 'lab1' | 'lab2' | 'lab3' | 'lab4') => {
     setErrorMsg('');
-    const samples = lab === 'lab3' ? SAMPLE_SUBMISSIONS_LAB3 : lab === 'lab2' ? SAMPLE_SUBMISSIONS_LAB2 : SAMPLE_SUBMISSIONS;
+    const samples =
+      lab === 'lab4'
+        ? SAMPLE_SUBMISSIONS_LAB4
+        : lab === 'lab3'
+        ? SAMPLE_SUBMISSIONS_LAB3
+        : lab === 'lab2'
+        ? SAMPLE_SUBMISSIONS_LAB2
+        : SAMPLE_SUBMISSIONS;
     const files = samples.map((s) => ({
       name: s.fileName,
       content: s.code,
@@ -192,6 +200,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             >
               Лаб №3 (20)
             </button>
+            <button
+              type="button"
+              onClick={() => setTargetLab('lab4')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center transition-all ${
+                targetLab === 'lab4'
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              Лаб №4 (25)
+            </button>
           </div>
         </div>
 
@@ -222,9 +241,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               type="button"
               onClick={() => handleLoadDemo('lab3')}
               disabled={isProcessing}
-              className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-xs"
+              className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-white text-violet-700 border border-violet-200 hover:bg-violet-100 transition-colors"
             >
               Лаб №3 (20)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleLoadDemo('lab4')}
+              disabled={isProcessing}
+              className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-xs"
+            >
+              Лаб №4 (25)
             </button>
           </div>
         </div>

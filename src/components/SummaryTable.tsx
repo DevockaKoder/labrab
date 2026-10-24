@@ -149,9 +149,10 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
       csv += `"${cleanName}","${grp}","${s.fileName}",${s.gradeScale3},"${gradeTitle}",${scoreStr},${maxScoreStr},${s.gradePercentage}%,${simVal},${simWith},${aiProb},"${aiVerdict}","${feedbackEscaped}"\n`;
     });
 
+    const isLab4 = submissions.some((s) => s.labId === 'lab4');
     const isLab3 = submissions.some((s) => s.labId === 'lab3');
     const isLab2 = submissions.some((s) => s.labId === 'lab2');
-    const labNumber = isLab3 ? 3 : isLab2 ? 2 : 1;
+    const labNumber = isLab4 ? 4 : isLab3 ? 3 : isLab2 ? 2 : 1;
     const groupSuffix = selectedGroup !== 'all' ? `_${selectedGroup.replace(/\s+/g, '_')}` : '';
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -164,9 +165,10 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
   };
 
   const handleCopySummary = () => {
+    const isLab4 = submissions.some((s) => s.labId === 'lab4');
     const isLab3 = submissions.some((s) => s.labId === 'lab3');
     const isLab2 = submissions.some((s) => s.labId === 'lab2');
-    const labNumber = isLab3 ? 3 : isLab2 ? 2 : 1;
+    const labNumber = isLab4 ? 4 : isLab3 ? 3 : isLab2 ? 2 : 1;
     let text = `СВОДНАЯ ВЕДОМОСТЬ: Лабораторная работа №${labNumber} (Python)\n`;
     text += `Шкала: 3 - отлично, 2 - есть ошибки, 1 - много ошибок/ИИ, 0 - не зачтено\n`;
     text += `Дата формирования: ${new Date().toLocaleDateString()}\n\n`;
@@ -281,10 +283,13 @@ export const SummaryTable: React.FC<SummaryTableProps> = ({
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               {(() => {
+                const isLab4 = submissions.some((s) => s.labId === 'lab4');
                 const isLab3 = submissions.some((s) => s.labId === 'lab3');
                 const isLab2 = submissions.some((s) => s.labId === 'lab2');
-                const max = submissions[0]?.maxPossibleScore || (isLab3 ? 20 : isLab2 ? 25 : 18);
-                const note = isLab3
+                const max = submissions[0]?.maxPossibleScore || (isLab4 ? 25 : isLab3 ? 20 : isLab2 ? 25 : 18);
+                const note = isLab4
+                  ? '(все 25 основных заданий зачётные, без доп.)'
+                  : isLab3
                   ? '(все 20 основных заданий зачётные)'
                   : isLab2
                   ? '(все 25 заданий зачётные, доп. не требуются)'

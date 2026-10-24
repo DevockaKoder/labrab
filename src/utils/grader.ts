@@ -1,6 +1,7 @@
 import { LAB1_TASKS } from '../data/lab1Tasks';
 import { LAB2_TASKS } from '../data/lab2Tasks';
 import { LAB3_TASKS } from '../data/lab3Tasks';
+import { LAB4_TASKS } from '../data/lab4Tasks';
 import { StudentSubmission, TaskCheckResult, LabTask } from '../types';
 import { splitCodeIntoTasks, extractStudentHeader, detectLabType } from './codeParser';
 import { runPythonCode } from './pythonRunner';
@@ -11,10 +12,17 @@ export async function gradeStudentCode(
   rawCode: string,
   fileName: string,
   onProgress?: (taskIndex: number, totalTasks: number, taskName: string) => void,
-  requestedLab?: 'lab1' | 'lab2' | 'lab3'
+  requestedLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4'
 ): Promise<StudentSubmission> {
-  const labId: 'lab1' | 'lab2' | 'lab3' = requestedLab || detectLabType(rawCode, fileName);
-  const taskList: LabTask[] = labId === 'lab3' ? LAB3_TASKS : labId === 'lab2' ? LAB2_TASKS : LAB1_TASKS;
+  const labId: 'lab1' | 'lab2' | 'lab3' | 'lab4' = requestedLab || detectLabType(rawCode, fileName);
+  const taskList: LabTask[] =
+    labId === 'lab4'
+      ? LAB4_TASKS
+      : labId === 'lab3'
+      ? LAB3_TASKS
+      : labId === 'lab2'
+      ? LAB2_TASKS
+      : LAB1_TASKS;
 
   const { studentName, groupName } = extractStudentHeader(rawCode, fileName);
   const tasksMap = splitCodeIntoTasks(rawCode, fileName, labId);

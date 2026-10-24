@@ -4,8 +4,8 @@ import { PlayCircle, ShieldAlert, FileSpreadsheet, BookOpen, Upload, CheckCircle
 interface HeaderProps {
   activeTab: 'grading' | 'similarity' | 'summary' | 'tasks' | 'template';
   setActiveTab: (tab: 'grading' | 'similarity' | 'summary' | 'tasks' | 'template') => void;
-  activeLab: 'lab1' | 'lab2' | 'lab3';
-  onSelectLab: (lab: 'lab1' | 'lab2' | 'lab3') => void;
+  activeLab: 'lab1' | 'lab2' | 'lab3' | 'lab4';
+  onSelectLab: (lab: 'lab1' | 'lab2' | 'lab3' | 'lab4') => void;
   submissionsCount: number;
   suspiciousCount: number;
   aiAlertCount?: number;
@@ -36,14 +36,18 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-semibold text-slate-900 tracking-tight">
-                  {activeLab === 'lab3'
+                  {activeLab === 'lab4'
+                    ? 'Проверка Лабораторной работы №4'
+                    : activeLab === 'lab3'
                     ? 'Проверка Лабораторной работы №3'
                     : activeLab === 'lab2'
                     ? 'Проверка Лабораторной работы №2'
                     : 'Проверка Лабораторной работы №1'}
                 </h1>
                 <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-700 border border-indigo-200/60">
-                  {activeLab === 'lab3'
+                  {activeLab === 'lab4'
+                    ? '25 основных задач (без доп.)'
+                    : activeLab === 'lab3'
                     ? '20 основных задач'
                     : activeLab === 'lab2'
                     ? '25 заданий (без доп.)'
@@ -51,7 +55,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                {activeLab === 'lab3'
+                {activeLab === 'lab4'
+                  ? 'Базовые типы данных – строки: индексация, срезы, ord/chr, посимвольный анализ'
+                  : activeLab === 'lab3'
                   ? 'Циклы For и While, однопроходные алгоритмы (без списков), вложенные циклы'
                   : activeLab === 'lab2'
                   ? 'Числовые типы данных, целочисленная арифметика, время и оператор выбора'
@@ -99,6 +105,18 @@ export const Header: React.FC<HeaderProps> = ({
                 title="Лабораторная работа №3 (20 основных задач: циклы for, while, однопроходные, вложенные)"
               >
                 Лаб №3
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectLab('lab4')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  activeLab === 'lab4'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Лабораторная работа №4 (25 основных задач: строки, срезы, ord/chr, посимвольный анализ)"
+              >
+                Лаб №4
               </button>
             </div>
 
