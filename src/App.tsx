@@ -94,6 +94,9 @@ export default function App() {
     }
 
     // Combine with existing submissions
+    setProgressText('Проверка схожести решений (антиплагиат)...');
+    await new Promise((resolve) => setTimeout(resolve, 15));
+
     const combined = [...submissions, ...newSubmissions];
     const pairs = compareAllSubmissions(combined);
 

@@ -45,8 +45,8 @@ export async function gradeStudentCode(
       onProgress(i + 1, taskList.length, `${task.id} - ${task.title}`);
     }
 
-    // Yield to the browser event loop to keep UI smooth and allow garbage collection
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Yield to the browser event loop to keep UI smooth, prevent browser tab freeze, and allow repaints
+    await new Promise((resolve) => setTimeout(resolve, 8));
 
     const snippet = tasksMap[task.id];
 
@@ -222,6 +222,11 @@ export async function gradeStudentCode(
       isMemoryLimitExceeded: taskIsMemoryLimit,
     };
   }
+
+  if (onProgress) {
+    onProgress(taskList.length, taskList.length, 'Итоги и проверка авторства...');
+  }
+  await new Promise((resolve) => setTimeout(resolve, 10));
 
   // Eliminate IEEE 754 precision artifacts (e.g. 15.999999999999996 -> 16.0)
   totalScore = Math.round(totalScore * 10) / 10;

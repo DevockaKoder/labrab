@@ -228,12 +228,12 @@ if not exec_error and guarded_tree is not None:
 
         def guard_check(self, lineno, loop_type):
             self.loop_iterations += 1
-            if self.loop_iterations > 2500000:
+            if self.loop_iterations > 1000000:
                 self.is_loop_timeout = True
-                raise TimeoutError(f"Обнаружен бесконечный цикл {loop_type} (строка {lineno})! Превышен безопасный лимит 2500000 итераций. Проверьте условия выхода из цикла.")
-            if time.time() - self.start_time > 5.0:
+                raise TimeoutError(f"Обнаружен бесконечный цикл {loop_type} (строка {lineno})! Превышен безопасный лимит 1000000 итераций. Проверьте условия выхода из цикла.")
+            if time.time() - self.start_time > 2.5:
                 self.is_loop_timeout = True
-                raise TimeoutError(f"Превышено максимальное время выполнения (5.0 сек, строка {lineno})! Возможно, в коде бесконечный цикл.")
+                raise TimeoutError(f"Превышено максимальное время выполнения (2.5 сек, строка {lineno})! Возможно, в коде бесконечный цикл.")
 
     state = _RunnerState(raw_inputs, has_split_call)
 
