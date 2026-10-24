@@ -4,37 +4,122 @@ export interface ExtractedStudentInfo {
   tasks: { [taskId: string]: string };
 }
 
+
+/**
+ * Cleanly extracts student display name if the raw name has Moodle artifacts like:
+ * "Ильхам Сагынтай 1544268 assignsubmission file ТРИС 1 26 Сагынтай ЛР3"
+ */
+export function cleanStudentDisplayName(name: string): string {
+  if (!name) return 'Студент';
+  const trimmed = name.trim();
+  // Moodle pattern: Name + ID + assignsubmission
+  const moodleMatch = trimmed.match(/^([^\d_]+(?:[^\d_]+)*?)[_\s]+\d{4,9}[_\s]+assignsubmission\b/i);
+  if (moodleMatch) {
+    return moodleMatch[1].replace(/_/g, ' ').trim();
+  }
+  const altMoodle = trimmed.match(/^(.+?)[_\s]+\d{4,9}[_\s]+assignsubmission\b/i);
+  if (altMoodle) {
+    return altMoodle[1].replace(/_/g, ' ').trim();
+  }
+  return trimmed;
+}
+
+/**
+ * Tries to extract group name like "ТРИС 1 26", "ПИ 4 26", "ТРП 1 26", "ТРП-1-22" from text or filename.
+ */
+export function extractGroupFromText(text: string): string | null {
+  if (!text) return null;
+  // Match patterns like "ТРИС 1 26", "ПИ 4 26", "ТРП-1-22", "ИВТ-21"
+  // Avoid matching words like "ЛР 3" or "ЛБ 3" as group name
+  const matches = text.matchAll(/\b([А-ЯA-Z]{2,8}(?:[-_\s]\d+){1,3})\b/gi);
+  for (const m of matches) {
+    const candidate = m[1].replace(/_/g, ' ').trim();
+    // Exclude laboratory prefixes like ЛР 3, ЛБ 3, LAB 3
+    if (/^(?:лр|лб|лаб|lab|пр)\s*\d+$/i.test(candidate)) {
+      continue;
+    }
+    return candidate;
+  }
+  return null;
+}
+
 export function extractStudentHeader(code: string, fileName: string): { studentName: string; groupName: string } {
-  // Check first lines for comments with group and name
+  // 1. Check for Moodle pattern in filename first
+  // e.g. "Ильхам Сагынтай 1544268 assignsubmission file ТРИС 1 26 Сагынтай ЛР3.py"
+  let moodleStudentName = '';
+  let moodleGroup = '';
+
+  const moodleMatch = fileName.match(/^([^\d_]+(?:[^\d_]+)*?)[_\s]+(\d{4,9})[_\s]+assignsubmission(?:[_\s]+file)?[_\s]+(.*)$/i);
+  if (moodleMatch) {
+    moodleStudentName = moodleMatch[1].replace(/_/g, ' ').trim();
+    const rest = moodleMatch[3];
+    const extractedGrp = extractGroupFromText(rest);
+    if (extractedGrp) {
+      moodleGroup = extractedGrp;
+    }
+  }
+
+  // 2. Check first lines for comments with group and name
   const lines = code.split('\n').slice(0, 30);
   let studentName = '';
-  let groupName = '';
+  let groupName = moodleGroup;
 
   for (const line of lines) {
     const trimmed = line.trim();
     if (trimmed.startsWith('#')) {
       const content = trimmed.replace(/^#+\s*/, '');
-      // Match group like ТРП-1-22 or ИВТ-21 or similar
-      const groupMatch = content.match(/([А-Яа-яA-Za-z0-9\-]+(?:-\d+)+)/);
-      if (groupMatch && !groupName) {
-        groupName = groupMatch[1];
+
+      // Match explicit group declarations: "Группа: ТРП-1-22" or "Гр. ПИ 4 26"
+      const explicitGroup = content.match(/(?:группа|гр\.?|group)\s*[:=\-]?\s*([А-Яа-яA-Za-z0-9\s\-]+)/i);
+      if (explicitGroup && (!groupName || groupName === 'Группа 1')) {
+        const candidate = explicitGroup[1].trim();
+        if (candidate.length < 25) {
+          groupName = candidate;
+        }
+      } else if (!groupName) {
+        const found = extractGroupFromText(content);
+        if (found) groupName = found;
       }
+
+      // Match explicit student declarations: "Студент: Иванов Иван" or "Выполнил: ..."
+      const explicitName = content.match(/(?:студент|выполнил|автор|фио)\s*[:=\-]?\s*([А-ЯЁа-яёA-Za-z\s\.]+)/i);
+      if (explicitName && !studentName) {
+        const candidate = explicitName[1].trim();
+        if (candidate.length < 35 && candidate.length > 2) {
+          studentName = candidate;
+        }
+      }
+
       // Match Russian name: Иванов И.И. or Иванов Иван
-      const nameMatch = content.match(/([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ]\.[А-ЯЁ]\.|\s+[А-ЯЁ][а-яё]+))/);
-      if (nameMatch && !studentName) {
-        studentName = nameMatch[1];
+      if (!studentName) {
+        const nameMatch = content.match(/([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ]\.[А-ЯЁ]\.|\s+[А-ЯЁ][а-яё]+))/);
+        if (nameMatch) {
+          studentName = nameMatch[1];
+        }
       }
     }
   }
 
-  // Fallback to fileName if not detected in code
+  // 3. Fallback to Moodle student name or cleaned fileName
   if (!studentName) {
-    const baseName = fileName
-      .replace(/\.[^/.]+$/, '')
-      .replace(/(?:лабораторная|лаб|лаба|lr|lab)\s*\d*/gi, '')
-      .replace(/[-_]/g, ' ')
-      .trim();
-    studentName = baseName || 'Студент';
+    if (moodleStudentName) {
+      studentName = moodleStudentName;
+    } else {
+      const baseName = fileName
+        .replace(/\.[^/.]+$/, '')
+        .replace(/(?:лабораторная|лаб|лаба|lr|lab)\s*\d*/gi, '')
+        .replace(/[-_]/g, ' ')
+        .trim();
+      studentName = cleanStudentDisplayName(baseName) || 'Студент';
+    }
+  }
+
+  // Fallback group from filename if not yet found
+  if (!groupName || groupName === 'Группа 1') {
+    const fromFile = extractGroupFromText(fileName);
+    if (fromFile) {
+      groupName = fromFile;
+    }
   }
 
   return { studentName, groupName: groupName || 'Группа 1' };

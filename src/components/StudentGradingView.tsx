@@ -74,76 +74,10 @@ export function parseInteractiveInputs(inputStr: string): string[] {
   return result;
 }
 
-// Generates concise feedback for the student, including ONLY erroneous or not found tasks (excluding sample tasks)
-export function generateStudentFeedback(currentStudent: StudentSubmission): string {
-  const labNum = currentStudent.labId === 'lab3' ? 3 : currentStudent.labId === 'lab2' ? 2 : 1;
-  const labTasks =
-    currentStudent.labId === 'lab3'
-      ? LAB3_TASKS
-      : currentStudent.labId === 'lab2'
-      ? LAB2_TASKS
-      : LAB1_TASKS;
+export { generateStudentFeedback } from '../utils/feedbackGenerator';
+import { generateStudentFeedback } from '../utils/feedbackGenerator';
+import { cleanStudentDisplayName } from '../utils/codeParser';
 
-  let report = `Результаты проверки лабораторной работы №${labNum}:\n`;
-  report += `Студент: ${currentStudent.studentName} (${currentStudent.groupName || 'Группа не указана'})\n`;
-  report += `Оценка: ${currentStudent.gradeScale3} из 3 (${currentStudent.gradeScale3Details?.verdictTitle || ''})\n`;
-  if (currentStudent.gradeScale3Details?.description) {
-    report += `Пояснение: ${currentStudent.gradeScale3Details.description}\n`;
-  }
-  report += `Зачётные задачи: набрано ${currentStudent.totalScore} из ${currentStudent.maxPossibleScore} (${currentStudent.gradePercentage}%)\n`;
-
-  if (currentStudent.topSimilarity && currentStudent.topSimilarity.similarityPercent >= 70) {
-    report += `\nВнимание: Система зафиксировала повышенную схожесть кода (${currentStudent.topSimilarity.similarityPercent}%) с работой другого студента (${currentStudent.topSimilarity.withStudentName}). Требуется проверка оригинальности.\n`;
-  }
-
-  if (currentStudent.aiDetection && currentStudent.aiDetection.aiProbability >= 40) {
-    report += `\nКонтроль авторства (ИИ): Вероятность генерации кода составляет ${currentStudent.aiDetection.aiProbability}% (${currentStudent.aiDetection.verdict === 'likely_ai' ? 'Высокая' : 'Умеренная'}).\n`;
-    if (currentStudent.aiDetection.defenseQuestions?.length) {
-      report += `Вопросы для очной защиты:\n`;
-      currentStudent.aiDetection.defenseQuestions.forEach((q, idx) => {
-        report += `  ${idx + 1}. ${q}\n`;
-      });
-    }
-  }
-
-  // Filter out sample tasks from методичка (in Lab 1: 1.1, 2.1, 3.1, 3.2, 4.1; in Lab 2 and 3: none are samples)
-  const gradedTasks = labTasks.filter((t) => !t.isSample);
-
-  // Keep ONLY problem tasks (erroneous or not found)
-  const problemTasks = gradedTasks.filter((t) => {
-    const r = currentStudent.results[t.id];
-    return !r || r.status === 'not_found' || r.status === 'failed' || r.status === 'syntax_error';
-  });
-
-  if (problemTasks.length === 0) {
-    const countDesc =
-      currentStudent.labId === 'lab3'
-        ? 'все 20 заданий'
-        : currentStudent.labId === 'lab2'
-        ? 'все 25 заданий'
-        : 'все зачётные задания';
-    report += `\nЗамечания по задачам:\nОшибочных или нерешённых задач нет (${countDesc} выполнены верно).\n`;
-  } else {
-    report += `\nЗамечания и нерешённые задания (${problemTasks.length}):\n`;
-    problemTasks.forEach((t) => {
-      const r = currentStudent.results[t.id];
-      if (!r || r.status === 'not_found') {
-        report += `- Задание ${t.id} (${t.title}): Не решено / отсутствует в файле\n`;
-      } else if (r.isLoopTimeout) {
-        report += `- Задание ${t.id} (${t.title}): Бесконечный цикл — программа зацикливается, проверьте условие выхода из while/for\n`;
-      } else if (r.isMemoryLimitExceeded) {
-        report += `- Задание ${t.id} (${t.title}): Переполнение памяти — код создаёт огромные данные или бесконечно печатает в print()\n`;
-      } else {
-        const failMsg = r.runtimeError || r.tests.find((test) => !test.passed)?.errorMessage || 'Несовпадение ответа с эталоном';
-        const astViol = r.astChecks.find((a) => !a.passed)?.message;
-        const reason = astViol ? `нарушено требование методички (${astViol})` : failMsg;
-        report += `- Задание ${t.id} (${t.title}): Ошибка — ${reason}\n`;
-      }
-    });
-  }
-
-  return report.trim();
-}
 
 interface StudentGradingViewProps {
   submissions: StudentSubmission[];
@@ -394,8 +328,8 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="truncate flex-1">
-                    <h4 className="text-sm font-semibold text-slate-900 truncate">
-                      {sub.studentName}
+                    <h4 className="text-sm font-semibold text-slate-900 truncate" title={sub.studentName}>
+                      {cleanStudentDisplayName(sub.studentName)}
                     </h4>
                     <p className="text-xs text-slate-500 font-mono truncate">
                       {sub.groupName} • {sub.fileName}
@@ -514,8 +448,8 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
                       <div className="flex items-start justify-between gap-2">
                         <div className="truncate flex-1">
                           <div className="flex items-center gap-1.5">
-                            <h4 className="text-xs font-semibold text-slate-700 truncate">
-                              {sub.studentName}
+                            <h4 className="text-xs font-semibold text-slate-700 truncate" title={sub.studentName}>
+                              {cleanStudentDisplayName(sub.studentName)}
                             </h4>
                             <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-200/70 text-slate-600 font-medium">
                               Архив
@@ -562,7 +496,9 @@ export const StudentGradingView: React.FC<StudentGradingViewProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-bold text-slate-900">{currentStudent.studentName}</h2>
+                <h2 className="text-xl font-bold text-slate-900" title={currentStudent.studentName}>
+                  {cleanStudentDisplayName(currentStudent.studentName)}
+                </h2>
                 <span className="text-xs px-2.5 py-0.5 rounded-md font-semibold bg-slate-100 text-slate-700">
                   {currentStudent.groupName}
                 </span>

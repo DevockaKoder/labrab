@@ -215,6 +215,9 @@ export async function gradeStudentCode(
     };
   }
 
+  // Eliminate IEEE 754 precision artifacts (e.g. 15.999999999999996 -> 16.0)
+  totalScore = Math.round(totalScore * 10) / 10;
+
   const gradePercentage = maxPossibleScore > 0 ? Math.round((totalScore / maxPossibleScore) * 100) : 100;
   const aiDetection = analyzeCodeForAiHeuristics(rawCode);
   const gradeScale3Details = calculateGradeScale3(totalScore, maxPossibleScore, results, aiDetection);
