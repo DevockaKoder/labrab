@@ -1,0 +1,121 @@
+{
+  "entities": {
+    "StudentSubmission": {
+      "title": "StudentSubmission",
+      "description": "Lab work submission evaluation for a student",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the submission",
+          "maxLength": 128
+        },
+        "teacherUid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the teacher owner",
+          "maxLength": 128
+        },
+        "labId": {
+          "type": "string",
+          "description": "Identifier of the lab (lab3, lab4)",
+          "maxLength": 32
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Full name of the student",
+          "maxLength": 150
+        },
+        "group": {
+          "type": "string",
+          "description": "Student academic group",
+          "maxLength": 50
+        },
+        "rawMoodleName": {
+          "type": "string",
+          "description": "Original raw filename or folder name from Moodle",
+          "maxLength": 300
+        },
+        "totalScore": {
+          "type": "number",
+          "description": "Earned score"
+        },
+        "maxScore": {
+          "type": "number",
+          "description": "Maximum possible score"
+        },
+        "grade": {
+          "type": "number",
+          "description": "Final grade (2 to 5, or 0-3)"
+        },
+        "feedback": {
+          "type": "string",
+          "description": "Formatted feedback text for student",
+          "maxLength": 10000
+        },
+        "isArchived": {
+          "type": "boolean",
+          "description": "Whether this submission has been archived"
+        },
+        "tasksResultsJson": {
+          "type": "string",
+          "description": "JSON string containing individual task evaluation results",
+          "maxLength": 50000
+        },
+        "code": {
+          "type": "string",
+          "description": "Student Python code",
+          "maxLength": 100000
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "teacherUid", "labId", "studentName", "totalScore", "grade"]
+    },
+    "PlagiarismReport": {
+      "title": "PlagiarismReport",
+      "description": "Plagiarism comparison results for a lab session",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the report",
+          "maxLength": 128
+        },
+        "teacherUid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the teacher owner",
+          "maxLength": 128
+        },
+        "labId": {
+          "type": "string",
+          "description": "Identifier of the lab (lab3, lab4)",
+          "maxLength": 32
+        },
+        "pairsJson": {
+          "type": "string",
+          "description": "JSON string containing detected similar pairs",
+          "maxLength": 100000
+        },
+        "generatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of generation",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "teacherUid", "labId", "pairsJson"]
+    }
+  },
+  "firestore": {
+    "/submissions/{submissionId}": {
+      "schema": "StudentSubmission",
+      "description": "Collection of student submission records indexed by submissionId"
+    },
+    "/plagiarism_reports/{reportId}": {
+      "schema": "PlagiarismReport",
+      "description": "Collection of plagiarism reports indexed by reportId"
+    }
+  }
+}

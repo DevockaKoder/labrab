@@ -15,11 +15,29 @@ import { SAMPLE_SUBMISSIONS } from './data/sampleSubmissions';
 import { SAMPLE_SUBMISSIONS_LAB2 } from './data/sampleSubmissionsLab2';
 import { SAMPLE_SUBMISSIONS_LAB3 } from './data/sampleSubmissionsLab3';
 import { SAMPLE_SUBMISSIONS_LAB4 } from './data/sampleSubmissionsLab4';
-import { Upload, Sparkles, BookOpen, Layers } from 'lucide-react';
+import { SAMPLE_SUBMISSIONS_LAB5 } from './data/sampleSubmissionsLab5';
+import { useAuth } from './context/AuthContext';
+import {
+  saveSingleSubmission,
+  saveSubmissionsBatch,
+  deleteSubmissionFromCloud,
+  subscribeToSubmissions,
+} from './utils/firebaseStorage';
+import {
+  Upload,
+  Sparkles,
+  Layers,
+  Cloud,
+  LogIn,
+  X,
+  CloudUpload,
+  CheckCircle2,
+} from 'lucide-react';
 
 export default function App() {
+  const { user, loginWithGoogle } = useAuth();
   const [activeTab, setActiveTab] = useState<'grading' | 'similarity' | 'summary' | 'tasks' | 'template'>('grading');
-  const [activeLab, setActiveLab] = useState<'lab1' | 'lab2' | 'lab3' | 'lab4'>('lab1');
+  const [activeLab, setActiveLab] = useState<'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5'>('lab1');
   const [submissions, setSubmissions] = useState<StudentSubmission[]>([]);
   const [similarityPairs, setSimilarityPairs] = useState<SimilarityPair[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
@@ -27,6 +45,8 @@ export default function App() {
   const [isPyodideReady, setIsPyodideReady] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [progressText, setProgressText] = useState<string>('');
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [showSyncBanner, setShowSyncBanner] = useState<boolean>(true);
   const [diffStudentPair, setDiffStudentPair] = useState<{ studentAId: string; studentBId: string }>({
     studentAId: '',
     studentBId: '',
@@ -40,6 +60,44 @@ export default function App() {
         console.warn('Pyodide initialization pending or fallback:', err);
       });
   }, []);
+
+  // Subscribe to Firestore submissions when teacher is logged in
+  useEffect(() => {
+    if (!user) return;
+
+    setIsSyncing(true);
+    const unsubscribe = subscribeToSubmissions(
+      user.uid,
+      (remoteSubs) => {
+        setIsSyncing(false);
+        setSubmissions((prevLocal) => {
+          // If remote is empty and we had local submissions, don't wipe them immediately
+          if (remoteSubs.length === 0 && prevLocal.length > 0) {
+            return prevLocal;
+          }
+          const remoteIds = new Set(remoteSubs.map((s) => s.id));
+          const unsynced = prevLocal.filter((local) => !remoteIds.has(local.id));
+          return [...remoteSubs, ...unsynced];
+        });
+      },
+      (err) => {
+        setIsSyncing(false);
+        console.error('Firestore subscription error:', err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Recalculate similarity pairs whenever submissions change
+  useEffect(() => {
+    if (submissions.length > 0) {
+      const pairs = compareAllSubmissions(submissions);
+      setSimilarityPairs(pairs);
+    } else {
+      setSimilarityPairs([]);
+    }
+  }, [submissions]);
 
   // Filter submissions by currently active lab
   const currentLabSubmissions = submissions.filter((s) => (s.labId || 'lab1') === activeLab);
@@ -60,22 +118,22 @@ export default function App() {
     } else {
       setSelectedStudentId('');
     }
-  }, [activeLab, submissions]);
+  }, [activeLab, currentLabSubmissions, selectedStudentId]);
 
   // Handler to process uploaded files
   const handleProcessFiles = async (
     files: { name: string; content: string }[],
-    targetLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4'
+    targetLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5'
   ) => {
     setIsProcessing(true);
     const newSubmissions: StudentSubmission[] = [];
-    let detectedOrChosenLab: 'lab1' | 'lab2' | 'lab3' | 'lab4' = targetLab || activeLab;
+    let detectedOrChosenLab: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5' = targetLab || activeLab;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const specificLab = targetLab || detectLabType(file.content, file.name, activeLab);
       detectedOrChosenLab = specificLab;
-      const labNum = specificLab === 'lab4' ? 4 : specificLab === 'lab3' ? 3 : specificLab === 'lab2' ? 2 : 1;
+      const labNum = specificLab === 'lab5' ? 5 : specificLab === 'lab4' ? 4 : specificLab === 'lab3' ? 3 : specificLab === 'lab2' ? 2 : 1;
       setProgressText(`Проверка файла ${i + 1} из ${files.length}: ${file.name} (Лаб №${labNum})`);
 
       try {
@@ -93,15 +151,19 @@ export default function App() {
       }
     }
 
-    // Combine with existing submissions
     setProgressText('Проверка схожести решений (антиплагиат)...');
     await new Promise((resolve) => setTimeout(resolve, 15));
 
     const combined = [...submissions, ...newSubmissions];
-    const pairs = compareAllSubmissions(combined);
+    setSubmissions(combined);
 
-    setSubmissions([...combined]);
-    setSimilarityPairs(pairs);
+    // If teacher is logged in, automatically save new submissions to Firestore
+    if (user && newSubmissions.length > 0) {
+      setIsSyncing(true);
+      saveSubmissionsBatch(newSubmissions, user.uid)
+        .catch((err) => console.error('Cloud batch save failed:', err))
+        .finally(() => setIsSyncing(false));
+    }
 
     // Switch to the lab of uploaded submissions
     setActiveLab(detectedOrChosenLab);
@@ -113,9 +175,11 @@ export default function App() {
     setProgressText('');
   };
 
-  const handleQuickLoadDemo = async (lab: 'lab1' | 'lab2' | 'lab3' | 'lab4') => {
+  const handleQuickLoadDemo = async (lab: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5') => {
     const samples =
-      lab === 'lab4'
+      lab === 'lab5'
+        ? SAMPLE_SUBMISSIONS_LAB5
+        : lab === 'lab4'
         ? SAMPLE_SUBMISSIONS_LAB4
         : lab === 'lab3'
         ? SAMPLE_SUBMISSIONS_LAB3
@@ -136,20 +200,29 @@ export default function App() {
 
   const handleDeleteSubmission = (id: string) => {
     const updated = submissions.filter((s) => s.id !== id);
-    const pairs = compareAllSubmissions(updated);
     setSubmissions(updated);
-    setSimilarityPairs(pairs);
+
+    if (user) {
+      setIsSyncing(true);
+      deleteSubmissionFromCloud(id)
+        .catch((err) => console.error('Cloud delete error:', err))
+        .finally(() => setIsSyncing(false));
+    }
+
     if (selectedStudentId === id) {
       const remainingForLab = updated.filter((s) => (s.labId || 'lab1') === activeLab);
       setSelectedStudentId(remainingForLab[0]?.id || '');
     }
   };
 
-  const suspiciousCount = currentSimilarityPairs.filter((p) => p.riskLevel === 'high').length;
-  const aiAlertCount = currentLabSubmissions.filter((s) => s.aiDetection?.verdict === 'likely_ai').length;
-
   const handleUpdateSubmission = (updated: StudentSubmission) => {
     setSubmissions((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+    if (user) {
+      setIsSyncing(true);
+      saveSingleSubmission(updated, user.uid)
+        .catch((err) => console.error('Cloud update error:', err))
+        .finally(() => setIsSyncing(false));
+    }
   };
 
   const handleToggleArchive = (studentId: string) => {
@@ -157,7 +230,7 @@ export default function App() {
       prev.map((s) => {
         if (s.id === studentId) {
           const nextArchived = !s.isArchived;
-          return {
+          const updatedSub: StudentSubmission = {
             ...s,
             isArchived: nextArchived,
             feedbackSent: nextArchived ? true : s.feedbackSent,
@@ -165,15 +238,37 @@ export default function App() {
               ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : undefined,
           };
+          if (user) {
+            setIsSyncing(true);
+            saveSingleSubmission(updatedSub, user.uid)
+              .catch((err) => console.error('Cloud archive update error:', err))
+              .finally(() => setIsSyncing(false));
+          }
+          return updatedSub;
         }
         return s;
       })
     );
   };
 
+  const handleSyncLocalToCloud = async () => {
+    if (!user || submissions.length === 0) return;
+    setIsSyncing(true);
+    try {
+      await saveSubmissionsBatch(submissions, user.uid);
+    } catch (err) {
+      console.error('Manual sync error:', err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const suspiciousCount = currentSimilarityPairs.filter((p) => p.riskLevel === 'high').length;
+  const aiAlertCount = currentLabSubmissions.filter((s) => s.aiDetection?.verdict === 'likely_ai').length;
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header with Lab Switcher */}
+      {/* Header with Lab Switcher, Auth & Cloud Sync */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -186,10 +281,70 @@ export default function App() {
         aiAlertCount={aiAlertCount}
         isPyodideReady={isPyodideReady}
         onOpenUpload={() => setIsUploadOpen(true)}
+        isSyncing={isSyncing}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Cloud Onboarding Banner (if not logged in) */}
+        {!user && showSyncBanner && (
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-indigo-50/90 via-sky-50/70 to-indigo-50/90 border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                <Cloud className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                  <span>Облачная база данных Firebase Firestore подключена</span>
+                  <span className="text-[10px] font-semibold px-2 py-0.2 rounded-full bg-emerald-100 text-emerald-800">
+                    Бесплатный тариф Spark
+                  </span>
+                </h4>
+                <p className="text-[11px] text-slate-600 mt-0.5">
+                  Войдите под своим Google-аккаунтом, чтобы результаты проверок, сводная ведомость и архивы автоматически сохранялись в облаке и были доступны на всех ваших устройствах.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+              <button
+                onClick={loginWithGoogle}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition-all shadow-xs"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Войти через Google</span>
+              </button>
+              <button
+                onClick={() => setShowSyncBanner(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-white/80 transition-colors"
+                title="Скрыть подсказку"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Sync Local Work Banner if user just logged in and has local submissions */}
+        {user && submissions.length > 0 && (
+          <div className="mb-4 flex items-center justify-between px-4 py-2.5 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs text-emerald-900">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>
+                Облачная синхронизация активна для <strong>{user.email}</strong>. Загруженные работы сохраняются в Firestore.
+              </span>
+            </div>
+            <button
+              onClick={handleSyncLocalToCloud}
+              disabled={isSyncing}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs hover:bg-emerald-50 transition-colors"
+              title="Перезаписать текущие работы в облачную базу данных"
+            >
+              <CloudUpload className="w-3.5 h-3.5" />
+              <span>Синхронизировать всё</span>
+            </button>
+          </div>
+        )}
+
         {activeTab === 'grading' && (
           currentLabSubmissions.length > 0 ? (
             <StudentGradingView
@@ -208,7 +363,9 @@ export default function App() {
                 <Layers className="w-8 h-8" />
               </div>
               <h3 className="text-lg font-bold text-slate-900">
-                {activeLab === 'lab4'
+                {activeLab === 'lab5'
+                  ? 'Работы по Лабораторной работе №5 ещё не загружены'
+                  : activeLab === 'lab4'
                   ? 'Работы по Лабораторной работе №4 ещё не загружены'
                   : activeLab === 'lab3'
                   ? 'Работы по Лабораторной работе №3 ещё не загружены'
@@ -217,7 +374,9 @@ export default function App() {
                   : 'Работы по Лабораторной работе №1 ещё не загружены'}
               </h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto mt-1.5 mb-6 leading-relaxed">
-                {activeLab === 'lab4'
+                {activeLab === 'lab5'
+                  ? 'В этой лабораторной проверяются 23 основные задачи (методы строк: поиск, замена, сдвиги, слова, пути, скобки, без дополнительных). Загрузите работы студентов или мгновенно проверьте демо-примеры.'
+                  : activeLab === 'lab4'
                   ? 'В этой лабораторной проверяются 25 основных заданий (базовые типы данных – строки: индексация, срезы, ord/chr, посимвольный анализ, без дополнительных). Загрузите работы студентов или мгновенно проверьте демо-примеры.'
                   : activeLab === 'lab3'
                   ? 'В этой лабораторной проверяются 20 основных заданий (циклы For и While, однопроходные алгоритмы без списков, вложенные циклы). Загрузите работы студентов или мгновенно проверьте демо-примеры.'
@@ -242,7 +401,9 @@ export default function App() {
                   <Sparkles className="w-4 h-4 text-indigo-600" />
                   <span>
                     Загрузить демо-работы (
-                    {activeLab === 'lab4'
+                    {activeLab === 'lab5'
+                      ? 'Лаб №5: 23 зад.'
+                      : activeLab === 'lab4'
                       ? 'Лаб №4: 25 зад.'
                       : activeLab === 'lab3'
                       ? 'Лаб №3: 20 зад.'

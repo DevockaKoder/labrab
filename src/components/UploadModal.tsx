@@ -5,15 +5,16 @@ import { SAMPLE_SUBMISSIONS } from '../data/sampleSubmissions';
 import { SAMPLE_SUBMISSIONS_LAB2 } from '../data/sampleSubmissionsLab2';
 import { SAMPLE_SUBMISSIONS_LAB3 } from '../data/sampleSubmissionsLab3';
 import { SAMPLE_SUBMISSIONS_LAB4 } from '../data/sampleSubmissionsLab4';
+import { SAMPLE_SUBMISSIONS_LAB5 } from '../data/sampleSubmissionsLab5';
 import { downloadUniversalTemplate } from '../data/universalTemplate';
 
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onProcessFiles: (files: { name: string; content: string }[], targetLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4') => Promise<void>;
+  onProcessFiles: (files: { name: string; content: string }[], targetLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5') => Promise<void>;
   isProcessing: boolean;
   progressText: string;
-  currentActiveLab: 'lab1' | 'lab2' | 'lab3' | 'lab4';
+  currentActiveLab: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5';
 }
 
 export const UploadModal: React.FC<UploadModalProps> = ({
@@ -25,7 +26,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   currentActiveLab,
 }) => {
   const [activeMode, setActiveMode] = useState<'files' | 'paste'>('files');
-  const [targetLab, setTargetLab] = useState<'lab1' | 'lab2' | 'lab3' | 'lab4' | 'auto'>('auto');
+  const [targetLab, setTargetLab] = useState<'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5' | 'auto'>('auto');
   const [dragOver, setDragOver] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<{ name: string; content: string }[]>([]);
   const [pasteName, setPasteName] = useState('');
@@ -83,10 +84,12 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     setSelectedFiles((prev) => [...prev, ...parsedFiles]);
   };
 
-  const handleLoadDemo = async (lab: 'lab1' | 'lab2' | 'lab3' | 'lab4') => {
+  const handleLoadDemo = async (lab: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5') => {
     setErrorMsg('');
     const samples =
-      lab === 'lab4'
+      lab === 'lab5'
+        ? SAMPLE_SUBMISSIONS_LAB5
+        : lab === 'lab4'
         ? SAMPLE_SUBMISSIONS_LAB4
         : lab === 'lab3'
         ? SAMPLE_SUBMISSIONS_LAB3
@@ -211,6 +214,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             >
               Лаб №4 (25)
             </button>
+            <button
+              type="button"
+              onClick={() => setTargetLab('lab5')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-medium border text-center transition-all ${
+                targetLab === 'lab5'
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              Лаб №5 (23)
+            </button>
           </div>
         </div>
 
@@ -249,9 +263,17 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               type="button"
               onClick={() => handleLoadDemo('lab4')}
               disabled={isProcessing}
-              className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-xs"
+              className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-white text-violet-700 border border-violet-200 hover:bg-violet-100 transition-colors"
             >
               Лаб №4 (25)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleLoadDemo('lab5')}
+              disabled={isProcessing}
+              className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-xs"
+            >
+              Лаб №5 (23)
             </button>
           </div>
         </div>

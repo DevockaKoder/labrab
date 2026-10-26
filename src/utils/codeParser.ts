@@ -128,15 +128,19 @@ export function extractStudentHeader(code: string, fileName: string): { studentN
 export function detectLabType(
   code: string,
   fileName = '',
-  fallbackLab: 'lab1' | 'lab2' | 'lab3' | 'lab4' = 'lab1'
-): 'lab1' | 'lab2' | 'lab3' | 'lab4' {
+  fallbackLab: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5' = 'lab1'
+): 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5' {
   // 1. Explicit filename cues
+  if (/lab_?5|лабораторная_?5|практика_?5|лаб_?5|лр_?5|лб_?5/i.test(fileName)) return 'lab5';
   if (/lab_?4|лабораторная_?4|практика_?4|лаб_?4|лр_?4|лб_?4/i.test(fileName)) return 'lab4';
   if (/lab_?3|лабораторная_?3|практика_?3|лаб_?3|лр_?3|лб_?3/i.test(fileName)) return 'lab3';
   if (/lab_?2|лабораторная_?2|практика_?2|лаб_?2|лр_?2|лб_?2/i.test(fileName)) return 'lab2';
   if (/lab_?1|лабораторная_?1|практика_?1|лаб_?1|лр_?1|лб_?1/i.test(fileName)) return 'lab1';
 
   // 2. Explicit header comments in code
+  if (/(?:лабораторная|лаб\.?|практическая|практика|лр|лб)\s*(?:работа\s*)?№?\s*5\b/i.test(code)) {
+    return 'lab5';
+  }
   if (/(?:лабораторная|лаб\.?|практическая|практика|лр|лб)\s*(?:работа\s*)?№?\s*4\b/i.test(code)) {
     return 'lab4';
   }
@@ -150,7 +154,16 @@ export function detectLabType(
     return 'lab1';
   }
 
-  // 3. Lab 4 specific keywords (Strings, slicing, ord/chr, swapcase)
+  // 3. Lab 5 specific keywords (Methods of strings: S.count, S.replace, S.split, etc.)
+  if (
+    /(?:методы\s+строк|количество\s+вхождений\s+строки\s+s0|удалить\s+из\s+строки\s+s|заменить\s+в\s+строке\s+s\s+последнее|удвоить\s+каждое\s+вхождение|избыточными\s+пробелами|русских\s+слов.*заглавными\s+буквами|начинаются\s+и\s+заканчиваются\s+одной|длину\s+самого\s+короткого\s+слова|кодовым\s+смещением|скобки\s+трех\s+видов|полное\s+имя\s+файла|s\.count|s\.rfind|s\.split|digit.*lat.*rus)/i.test(
+      code
+    )
+  ) {
+    return 'lab5';
+  }
+
+  // 4. Lab 4 specific keywords (Strings, slicing, ord/chr, swapcase)
   if (
     /(?:базовые\s+типы\s+данных\s*[–\-]\s*строки|срез\s+из\s+(?:первых|последних)\s+5|получить\s+из\s+нее\s+5-?тый\s+элемент|ord\(|chr\(|swapcase|каждый\s+второй\s+элемент\s+строки|символ\s+c.*номер\s+в\s+кодовой\s+таблице|строчных.*букв\s+латинского\s+алфавита\s+в\s+обратном\s+порядке)/i.test(
       code
@@ -159,7 +172,7 @@ export function detectLabType(
     return 'lab4';
   }
 
-  // 4. Lab 3 specific keywords
+  // 5. Lab 3 specific keywords
   if (
     /(?:двойной\s+факториал|n!!|гармоническ|фибоначчи|однопроходн|округленные\s+значения|дробные\s+части|признак\s+его\s+завершения|вложенные\s+циклы|последовательность\s+(?:целых\s+чисел\s+)?a[kк]|сумма\s+первых\s+n\s+нечетных|квадрат\s+данного\s+числа.*n2\s*=|1\.1\s*–\s*1\.2\s*\+\s*1\.3|набор\s+из\s+n\s+(?:вещественных|положительных|целых)\s+чисел|последними\s+двумя\s+нулями|k\s+наборов\s+ненулевых|элементы\s+набора\s+возрастают)/i.test(
       code
@@ -168,9 +181,10 @@ export function detectLabType(
     return 'lab3';
   }
 
-  // 5. Lab 2 specific markers:
-  // Numbers 21..25 only exist in Lab 2 & 4
+  // 6. Lab 2 specific markers:
+  // Numbers 21..25 only exist in Lab 2, 4, 5
   if (/(?:^|\n)\s*#+\s*(?:задача|задание|task|№)?\s*(?:[12]\.)?2[1-5](?:\.|\b)/i.test(code)) {
+    if (fallbackLab === 'lab5') return 'lab5';
     if (fallbackLab === 'lab4') return 'lab4';
     return 'lab2';
   }
@@ -184,16 +198,18 @@ export function detectLabType(
     return 'lab2';
   }
 
-  // 6. Lab 1 specific markers:
-  // Blocks 3.x and 4.x (e.g. # 3.1, # 4.1) only if not already detected as Lab 3 or 4
+  // 7. Lab 1 specific markers:
+  // Blocks 3.x and 4.x (e.g. # 3.1, # 4.1) only if not already detected as Lab 3, 4, 5
   if (/(?:^|\n)\s*#+\s*(?:задача|задание|task|№)?\s*[34]\.[1-7]\b/i.test(code)) {
+    if (fallbackLab === 'lab5') return 'lab5';
     if (fallbackLab === 'lab3') return 'lab3';
     if (fallbackLab === 'lab4') return 'lab4';
     return 'lab1';
   }
 
-  // Task numbers 8..20 could be Lab 2, 3 or 4
+  // Task numbers 8..20 could be Lab 2, 3, 4, 5
   if (/(?:^|\n)\s*#+\s*(?:задача|задание|task|№)?\s*(?:1\d|20)\b/i.test(code)) {
+    if (fallbackLab === 'lab5') return 'lab5';
     if (fallbackLab === 'lab4') return 'lab4';
     if (fallbackLab === 'lab3') return 'lab3';
     return 'lab2';
@@ -205,10 +221,13 @@ export function detectLabType(
 export function splitCodeIntoTasks(
   code: string,
   fileName = '',
-  targetLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4'
+  targetLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5'
 ): { [taskId: string]: string } {
   const lab = targetLab || detectLabType(code, fileName);
 
+  if (lab === 'lab5') {
+    return splitCodeForLab5(code, fileName);
+  }
   if (lab === 'lab4') {
     return splitCodeForLab4(code, fileName);
   }
@@ -318,7 +337,7 @@ function resolveTaskNumber(
   num: number,
   currentGroup: number,
   maxTaskNum: number,
-  labPrefix: '2' | '3' | '4',
+  labPrefix: '2' | '3' | '4' | '5',
   seenTaskIds: Set<string>
 ): string | null {
   if (num > maxTaskNum) return null;
@@ -350,7 +369,7 @@ function parseTaskMarkerFromLine(
   line: string,
   currentGroup: number,
   maxTaskNum: number,
-  labPrefix: '2' | '3' | '4',
+  labPrefix: '2' | '3' | '4' | '5',
   seenTaskIds: Set<string>
 ): string | null {
   const trimmed = line.trim();
@@ -458,7 +477,7 @@ function splitNumberedLab(
   code: string,
   fileName: string,
   maxTaskNum: number,
-  labPrefix: '2' | '3' | '4'
+  labPrefix: '2' | '3' | '4' | '5'
 ): { [taskId: string]: string } {
   const taskMap: { [taskId: string]: string } = {};
 
@@ -549,6 +568,10 @@ function splitCodeForLab3(code: string, fileName: string): { [taskId: string]: s
 
 function splitCodeForLab4(code: string, fileName: string): { [taskId: string]: string } {
   return splitNumberedLab(code, fileName, 25, '4');
+}
+
+function splitCodeForLab5(code: string, fileName: string): { [taskId: string]: string } {
+  return splitNumberedLab(code, fileName, 23, '5');
 }
 
 function extractSnippets(

@@ -3,15 +3,16 @@ import { LAB1_TASKS } from '../data/lab1Tasks';
 import { LAB2_TASKS } from '../data/lab2Tasks';
 import { LAB3_TASKS } from '../data/lab3Tasks';
 import { LAB4_TASKS } from '../data/lab4Tasks';
+import { LAB5_TASKS } from '../data/lab5Tasks';
 import { BookOpen, Copy, Check, Terminal, Code2, Download, FileCode2 } from 'lucide-react';
 import { downloadUniversalTemplate } from '../data/universalTemplate';
 
 interface TasksCatalogProps {
-  initialLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4';
+  initialLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5';
 }
 
 export const TasksCatalog: React.FC<TasksCatalogProps> = ({ initialLab = 'lab1' }) => {
-  const [activeLab, setActiveLab] = useState<'lab1' | 'lab2' | 'lab3' | 'lab4'>(initialLab);
+  const [activeLab, setActiveLab] = useState<'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5'>(initialLab);
   const [selectedSection, setSelectedSection] = useState<string>('all');
   const [copiedTask, setCopiedTask] = useState<string | null>(null);
 
@@ -44,8 +45,17 @@ export const TasksCatalog: React.FC<TasksCatalogProps> = ({ initialLab = 'lab1' 
     '3. Посимвольный анализ и преобразование строк',
   ];
 
+  const lab5Sections = [
+    'all',
+    '1. Обработка строк с помощью методов',
+    '2. Анализ и преобразование слов в строке',
+    '3. Другие задания на обработку строк',
+  ];
+
   const currentLabTasks =
-    activeLab === 'lab4'
+    activeLab === 'lab5'
+      ? LAB5_TASKS
+      : activeLab === 'lab4'
       ? LAB4_TASKS
       : activeLab === 'lab3'
       ? LAB3_TASKS
@@ -54,7 +64,9 @@ export const TasksCatalog: React.FC<TasksCatalogProps> = ({ initialLab = 'lab1' 
       : LAB1_TASKS;
 
   const currentSections =
-    activeLab === 'lab4'
+    activeLab === 'lab5'
+      ? lab5Sections
+      : activeLab === 'lab4'
       ? lab4Sections
       : activeLab === 'lab3'
       ? lab3Sections
@@ -82,7 +94,9 @@ export const TasksCatalog: React.FC<TasksCatalogProps> = ({ initialLab = 'lab1' 
             <div className="flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-indigo-600" />
               <h2 className="text-lg font-bold text-slate-900">
-                {activeLab === 'lab4'
+                {activeLab === 'lab5'
+                  ? 'База заданий: Лабораторная работа №5'
+                  : activeLab === 'lab4'
                   ? 'База заданий: Лабораторная работа №4'
                   : activeLab === 'lab3'
                   ? 'База заданий: Лабораторная работа №3'
@@ -92,7 +106,9 @@ export const TasksCatalog: React.FC<TasksCatalogProps> = ({ initialLab = 'lab1' 
               </h2>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              {activeLab === 'lab4'
+              {activeLab === 'lab5'
+                ? '«Базовые типы данных – строки: Методы строк» • 23 основные задачи (без доп.)'
+                : activeLab === 'lab4'
                 ? '«Базовые типы данных – строки: индексация, срезы, ord/chr, посимвольный анализ» • 25 основных заданий (без доп.)'
                 : activeLab === 'lab3'
                 ? '«Циклы for и while, однопроходные алгоритмы без списков, вложенные циклы» • 20 основных заданий'
@@ -155,6 +171,19 @@ export const TasksCatalog: React.FC<TasksCatalogProps> = ({ initialLab = 'lab1' 
               }`}
             >
               Лаб №4 (25)
+            </button>
+            <button
+              onClick={() => {
+                setActiveLab('lab5');
+                setSelectedSection('all');
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeLab === 'lab5'
+                  ? 'bg-white text-indigo-600 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Лаб №5 (23)
             </button>
           </div>
 

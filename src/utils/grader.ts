@@ -2,6 +2,7 @@ import { LAB1_TASKS } from '../data/lab1Tasks';
 import { LAB2_TASKS } from '../data/lab2Tasks';
 import { LAB3_TASKS } from '../data/lab3Tasks';
 import { LAB4_TASKS } from '../data/lab4Tasks';
+import { LAB5_TASKS } from '../data/lab5Tasks';
 import { StudentSubmission, TaskCheckResult, LabTask } from '../types';
 import { splitCodeIntoTasks, extractStudentHeader, detectLabType } from './codeParser';
 import { runPythonCode } from './pythonRunner';
@@ -12,11 +13,13 @@ export async function gradeStudentCode(
   rawCode: string,
   fileName: string,
   onProgress?: (taskIndex: number, totalTasks: number, taskName: string) => void,
-  requestedLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4'
+  requestedLab?: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5'
 ): Promise<StudentSubmission> {
-  const labId: 'lab1' | 'lab2' | 'lab3' | 'lab4' = requestedLab || detectLabType(rawCode, fileName);
+  const labId: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5' = requestedLab || detectLabType(rawCode, fileName);
   const taskList: LabTask[] =
-    labId === 'lab4'
+    labId === 'lab5'
+      ? LAB5_TASKS
+      : labId === 'lab4'
       ? LAB4_TASKS
       : labId === 'lab3'
       ? LAB3_TASKS

@@ -1,16 +1,34 @@
 import React from 'react';
-import { PlayCircle, ShieldAlert, FileSpreadsheet, BookOpen, Upload, CheckCircle2, Loader2, Layers, FileCode2 } from 'lucide-react';
+import {
+  PlayCircle,
+  ShieldAlert,
+  FileSpreadsheet,
+  BookOpen,
+  Upload,
+  CheckCircle2,
+  Loader2,
+  Layers,
+  FileCode2,
+  Cloud,
+  CloudCheck,
+  CloudUpload,
+  LogIn,
+  LogOut,
+  User,
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
   activeTab: 'grading' | 'similarity' | 'summary' | 'tasks' | 'template';
   setActiveTab: (tab: 'grading' | 'similarity' | 'summary' | 'tasks' | 'template') => void;
-  activeLab: 'lab1' | 'lab2' | 'lab3' | 'lab4';
-  onSelectLab: (lab: 'lab1' | 'lab2' | 'lab3' | 'lab4') => void;
+  activeLab: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5';
+  onSelectLab: (lab: 'lab1' | 'lab2' | 'lab3' | 'lab4' | 'lab5') => void;
   submissionsCount: number;
   suspiciousCount: number;
   aiAlertCount?: number;
   isPyodideReady: boolean;
   onOpenUpload: () => void;
+  isSyncing?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -23,7 +41,9 @@ export const Header: React.FC<HeaderProps> = ({
   aiAlertCount = 0,
   isPyodideReady,
   onOpenUpload,
+  isSyncing = false,
 }) => {
+  const { user, loginWithGoogle, logout, loading: authLoading } = useAuth();
   return (
     <header className="border-b border-slate-200 bg-white sticky top-0 z-30 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -36,7 +56,9 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-semibold text-slate-900 tracking-tight">
-                  {activeLab === 'lab4'
+                  {activeLab === 'lab5'
+                    ? 'Проверка Лабораторной работы №5'
+                    : activeLab === 'lab4'
                     ? 'Проверка Лабораторной работы №4'
                     : activeLab === 'lab3'
                     ? 'Проверка Лабораторной работы №3'
@@ -45,7 +67,9 @@ export const Header: React.FC<HeaderProps> = ({
                     : 'Проверка Лабораторной работы №1'}
                 </h1>
                 <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-700 border border-indigo-200/60">
-                  {activeLab === 'lab4'
+                  {activeLab === 'lab5'
+                    ? '23 основные задачи (без доп.)'
+                    : activeLab === 'lab4'
                     ? '25 основных задач (без доп.)'
                     : activeLab === 'lab3'
                     ? '20 основных задач'
@@ -55,7 +79,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                {activeLab === 'lab4'
+                {activeLab === 'lab5'
+                  ? 'Базовые типы данных – строки. Методы строк (поиск, замена, слова, шифрование, пути, скобки)'
+                  : activeLab === 'lab4'
                   ? 'Базовые типы данных – строки: индексация, срезы, ord/chr, посимвольный анализ'
                   : activeLab === 'lab3'
                   ? 'Циклы For и While, однопроходные алгоритмы (без списков), вложенные циклы'
@@ -67,13 +93,13 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Quick status & Actions */}
-          <div className="flex items-center flex-wrap gap-2.5">
+          <div className="flex items-center flex-wrap gap-2">
             {/* Lab Switcher Toggle in Header */}
             <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200/80">
               <button
                 type="button"
                 onClick={() => onSelectLab('lab1')}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all ${
                   activeLab === 'lab1'
                     ? 'bg-white text-indigo-600 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -85,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectLab('lab2')}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all ${
                   activeLab === 'lab2'
                     ? 'bg-white text-indigo-600 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -97,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectLab('lab3')}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all ${
                   activeLab === 'lab3'
                     ? 'bg-white text-indigo-600 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -109,7 +135,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={() => onSelectLab('lab4')}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all ${
                   activeLab === 'lab4'
                     ? 'bg-white text-indigo-600 shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -118,9 +144,92 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 Лаб №4
               </button>
+              <button
+                type="button"
+                onClick={() => onSelectLab('lab5')}
+                className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  activeLab === 'lab5'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Лабораторная работа №5 (23 основные задачи: методы строк, split, replace, count, шифрование)"
+              >
+                Лаб №5
+              </button>
             </div>
 
-            {/* Pyodide Runtime Indicator & Protection Badge */}
+            {/* Cloud Sync Status Badge */}
+            {user ? (
+              <div
+                className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  isSyncing
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}
+                title={isSyncing ? 'Синхронизация с Firestore...' : 'Все изменения сохранены в Firebase Firestore'}
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />
+                    <span className="hidden md:inline">Синхронизация...</span>
+                  </>
+                ) : (
+                  <>
+                    <CloudCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="hidden md:inline">Firestore подключен</span>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-amber-50 text-amber-700 border-amber-200"
+                title="Данные хранятся только в памяти браузера. Войдите, чтобы сохранять в облачную базу."
+              >
+                <Cloud className="w-3.5 h-3.5 text-amber-600" />
+                <span className="hidden md:inline">Локально</span>
+              </div>
+            )}
+
+            {/* Teacher Auth / Login Button */}
+            {user ? (
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 pl-2 pr-1 py-1 rounded-xl">
+                {user.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt={user.displayName || 'Преподаватель'}
+                    className="w-5 h-5 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">
+                    {(user.displayName || user.email || 'П')[0].toUpperCase()}
+                  </div>
+                )}
+                <span className="text-xs font-medium text-slate-700 max-w-[100px] truncate" title={user.displayName || user.email || ''}>
+                  {user.displayName?.split(' ')[0] || user.email?.split('@')[0]}
+                </span>
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-white transition-colors"
+                  title="Выйти из аккаунта"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={loginWithGoogle}
+                disabled={authLoading}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs hover:border-slate-300 transition-all"
+                title="Войти через Google для автоматического сохранения в Firebase"
+              >
+                <LogIn className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Войти</span>
+              </button>
+            )}
+
+            {/* Pyodide Runtime Indicator */}
             <div
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
                 isPyodideReady
@@ -131,32 +240,24 @@ export const Header: React.FC<HeaderProps> = ({
               {isPyodideReady ? (
                 <>
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Python Wasm готов</span>
+                  <span className="hidden sm:inline">Python готов</span>
                 </>
               ) : (
                 <>
                   <Loader2 className="w-3.5 h-3.5 text-amber-600 animate-spin" />
-                  <span>Загрузка Python...</span>
+                  <span>Загрузка...</span>
                 </>
               )}
-            </div>
-
-            <div
-              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-indigo-50 text-indigo-700 border-indigo-200"
-              title="Защита памяти и от бесконечных циклов: лимит 50 000 итераций, защита от зависаний вкладки и переполнения памяти"
-            >
-              <ShieldAlert className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Защита от циклов и памяти</span>
             </div>
 
             {/* Upload Button */}
             <button
               id="upload-submission-btn"
               onClick={onOpenUpload}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition-colors shadow-xs"
             >
               <Upload className="w-3.5 h-3.5" />
-              <span>Загрузить работы (.py / .zip)</span>
+              <span>Загрузить работы</span>
             </button>
           </div>
         </div>
@@ -232,7 +333,7 @@ export const Header: React.FC<HeaderProps> = ({
             <BookOpen className="w-4 h-4" />
             <span>Каталог заданий</span>
             <span className="ml-1 px-1.5 py-0.2 rounded-full text-xs bg-slate-100 text-slate-600">
-              {activeLab === 'lab3' ? '20' : activeLab === 'lab2' ? '25' : '23'}
+              {activeLab === 'lab5' ? '23' : activeLab === 'lab4' ? '25' : activeLab === 'lab3' ? '20' : activeLab === 'lab2' ? '25' : '23'}
             </span>
           </button>
 

@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidStudentSubmission(data) {
+      return data.keys().hasAll(['id', 'teacherUid', 'labId', 'studentName', 'totalScore', 'grade']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.teacherUid is string && data.teacherUid == request.auth.uid &&
+        data.labId is string && data.labId.size() <= 32 &&
+        data.studentName is string && data.studentName.size() <= 150 &&
+        data.totalScore is number &&
+        data.grade is number &&
+        (!('group' in data) || (data.group is string && data.group.size() <= 50)) &&
+        (!('rawMoodleName' in data) || (data.rawMoodleName is string && data.rawMoodleName.size() <= 300)) &&
+        (!('maxScore' in data) || data.maxScore is number) &&
+        (!('feedback' in data) || (data.feedback is string && data.feedback.size() <= 10000)) &&
+        (!('isArchived' in data) || data.isArchived is bool) &&
+        (!('tasksResultsJson' in data) || (data.tasksResultsJson is string && data.tasksResultsJson.size() <= 50000)) &&
+        (!('code' in data) || (data.code is string && data.code.size() <= 100000)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    function isValidPlagiarismReport(data) {
+      return data.keys().hasAll(['id', 'teacherUid', 'labId', 'pairsJson']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.teacherUid is string && data.teacherUid == request.auth.uid &&
+        data.labId is string && data.labId.size() <= 32 &&
+        data.pairsJson is string && data.pairsJson.size() <= 100000 &&
+        (!('generatedAt' in data) || (data.generatedAt is string && data.generatedAt.size() <= 64));
+    }
+
+    match /submissions/{submissionId} {
+      allow get: if isSignedIn() && existing().teacherUid == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(submissionId) && isValidStudentSubmission(incoming());
+      allow update: if isSignedIn() && isValidId(submissionId) && 
+        existing().teacherUid == request.auth.uid &&
+        incoming().teacherUid == existing().teacherUid &&
+        isValidStudentSubmission(incoming());
+      allow delete: if isSignedIn() && isValidId(submissionId) && existing().teacherUid == request.auth.uid;
+    }
+
+    match /plagiarism_reports/{reportId} {
+      allow get: if isSignedIn() && existing().teacherUid == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.teacherUid == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(reportId) && isValidPlagiarismReport(incoming());
+      allow update: if isSignedIn() && isValidId(reportId) && 
+        existing().teacherUid == request.auth.uid &&
+        incoming().teacherUid == existing().teacherUid &&
+        isValidPlagiarismReport(incoming());
+      allow delete: if isSignedIn() && isValidId(reportId) && existing().teacherUid == request.auth.uid;
+    }
+  }
+}
